@@ -11,20 +11,21 @@ typedef void (*led_pattern_func_t)(
     uint32_t period_ms,
     // The palette to use to render the LEDs. Can be
     // potentially ignored by the pattern if it wants to use a single color
-    const CRGBPalette16* palette,
+    const CRGBPalette16 *palette,
     // The single color to use for the pattern, If it wants a single color
     CRGB single_color,
     // The number of LEDs in the string
     uint32_t num_leds,
     // The array of LEDs to update
-    CRGB* leds);
+    CRGB *leds);
 
 // This struct is used to describe an LED pattern, which will drive a string of LEDs
-typedef struct {
+typedef struct
+{
     // The name of the pattern
-    const char* name;
+    const char *name;
     // The description of the pattern
-    const char* desc;
+    const char *desc;
     // The function that will be called to update the LEDs
     led_pattern_func_t update;
 } led_pattern_t;
@@ -36,4 +37,3 @@ extern led_pattern_t led_patterns[];
 extern uint32_t num_led_patterns();
 
 #endif // LED_PATTERN_H
-

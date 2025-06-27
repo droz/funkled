@@ -22,7 +22,8 @@ const uint32_t CHANNEL_CURRENT = 0xFFFFFFFF;
 // Typedefs
 //
 // Descriptor for an LED string
-typedef struct {
+typedef struct
+{
     // Number of LEDs in the strip
     uint32_t num_leds;
     // The color ordering of the strip. Uses the OctoWS2811 constants

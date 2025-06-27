@@ -1,8 +1,9 @@
 
 #include "slider.h"
 
-lv_obj_t* slider_create(lv_obj_t* parent, lv_color_t color, lv_event_cb_t slider_pressed_cb) {
-    lv_obj_t* slider_w = lv_slider_create(parent);
+lv_obj_t *slider_create(lv_obj_t *parent, lv_color_t color, lv_event_cb_t slider_pressed_cb)
+{
+    lv_obj_t *slider_w = lv_slider_create(parent);
     lv_obj_set_style_bg_color(slider_w, color, LV_PART_KNOB);
     lv_obj_set_style_bg_color(slider_w, color, LV_PART_INDICATOR);
     lv_obj_set_style_bg_opa(slider_w, LV_OPA_50, LV_PART_INDICATOR);

@@ -2,7 +2,8 @@
 #define IS_BED_UI_H
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
 #include "../lvgl.h"
@@ -15,8 +16,8 @@ extern "C" {
 #error "LV_USE_FLEX needs to be enabled"
 #endif
 
-// Create a complete UI for the IS Bed
-void is_bed_ui(void);
+    // Create a complete UI for the IS Bed
+    void is_bed_ui(void);
 
 #ifdef __cplusplus
 } /* extern "C" */
