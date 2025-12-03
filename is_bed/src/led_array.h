@@ -10,15 +10,17 @@
 // Constants
 //
 // The number of LED channels that we are managing
-const uint32_t num_led_channels = 5;
+const uint32_t num_led_channels = 8;
 // The number of LED zones
 const uint32_t num_zones = 4;
 // The maximum number of LEDs per LED string
-const uint32_t max_leds_per_channel = 1024;
+const uint32_t max_leds_per_channel = 512;
 // The total number of LEDs
 const uint32_t max_leds = num_led_channels * max_leds_per_channel;
 // Special value to use the current channel
 const uint32_t CHANNEL_CURRENT = 0xFFFFFFFF;
+
+const uint32_t num_strings = 5;
 
 //
 // Typedefs
@@ -48,6 +50,8 @@ typedef struct
     uint32_t num_segments;
     // The segment descriptors
     led_segment_t *segments;
+    // The output channel this string is attached to.
+    uint8_t channel;
 } led_string_t;
 
 // Descriptor of a zone. A zone consists of multiple LED segments,
