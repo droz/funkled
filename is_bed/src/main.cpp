@@ -274,9 +274,8 @@ static void led_refresh_cb(lv_timer_t *timer)
             for (uint32_t k = segment->string_offset; k < segment->string_offset + segment->num_leds; k++)
             {
                 uint32_t color_u32 = 0x000000;
-                // leds_crgb[k].nscale8(zone->brightness);
+                leds_crgb[k].nscale8(zone->brightness);
 
-                // leds_crgb[k] = CRGB::Red;
                 switch (zone->color_ordering)
                 {
                 case WS2811_RGB:
