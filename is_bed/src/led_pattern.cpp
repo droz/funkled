@@ -58,7 +58,40 @@ void blink_pattern(uint32_t time_ms, uint32_t period_ms, const CRGBPalette16 *pa
     }
 }
 
+// Fire pattern
+void fire_pattern(uint32_t time_ms, uint32_t period_ms, const CRGBPalette16 *palette, CRGB single_color, uint32_t string_index, uint32_t segment_index, uint32_t num_leds, CRGB *leds)
+{
+
+    led_string_t *led_string = &led_strings[string_index];
+    led_segment_t *segment = &led_string->segments[segment_index];
+    const uint32_t fire_period_ms = 60000;
+    const uint32_t step = (time_ms * fire.header.animation_steps / fire_period_ms) % fire.header.animation_steps;
+
+    // Seek to offset where to start reading LED data
+    uint64_t pos = sizeof(cached_pattern_header_t);
+    pos += fire.header.num_pixels * step * sizeof(CRGB);
+    for (uint32_t i = 0; i < string_index; i++) {
+        pos += led_strings[i].num_leds * sizeof(CRGB);
+    }
+    for (uint32_t i = 0; i < segment_index; i++) {
+        pos += led_string->segments[i].num_leds * sizeof(CRGB);
+    }
+    fire.file.seek(pos);
+    // Serial.printf("step: %d, pos: %" PRIu64 "\n", step, pos);
+
+    // Read LED data for segment.
+    for (uint32_t i = 0; i < num_leds; i++)
+    {
+        fire.file.read(&leds[i], sizeof(CRGB));
+    }
+}
+
 led_pattern_t led_patterns[] = {
+     {
+        .name = "Fire",
+        .desc = "Fire pattern",
+        .update = fire_pattern,
+    },
     {
         .name = "Rotate",
         .desc = "Rotate through a palette",

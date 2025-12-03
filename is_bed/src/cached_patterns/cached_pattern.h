@@ -8,38 +8,45 @@
 
 #include <OctoWS2811.h>
 #include <FastLED.h>
-
-
+#include <SD.h>
 
 // Struct to describe a cached pattern resource.
-typedef struct
+struct __attribute__((packed)) cached_pattern_header_t
 {
     // Two bytes indicating pattern format.
     uint16_t magic;
     // The color ordering used by the pattern
     uint8_t color_ordering;
-    // The number of animation steps stored in the pattern.
-    uint32_t animation_steps;
-    // Number of segments in this cached pattern.
-    uint32_t num_segments;
-    // Number of LEDs in each pattern segment.
-    const uint32_t *num_leds_per_segment;
-    // Size of the pattern in bytes
-    uint32_t num_pixels;
-    // Number of bytes in one animation step 
-    uint32_t stride;
-} cached_pattern_header_t;
+    // The number of pixels
+    uint16_t num_pixels;
+    // The number of animation steps stored.
+    uint16_t animation_steps;
+};
 
 typedef struct
 {
     cached_pattern_header_t header;
     // Size of the image in bytes
     uint32_t data_size;
-    const void *path;
+    const char *filepath;
+    File file;
 } cached_pattern_t;
 
-// Attribute to mark large constant binary arrays used in cached patterns
-#define PATTERN_ATTRIBUTE_LARGE_CONST __attribute__((section(".progmem")))
+// Macro to load files
+#define CACHED_PATTERN_LOAD(p)                                                    \
+    p.file = SD.open(p.filepath);                                                 \
+    if (p.file)                                                                   \
+    {                                                                             \
+        p.file.read(&p.header, sizeof(p.header));                                 \
+        Serial.printf("magic: %X\n", p.header.magic);                             \
+        Serial.printf("color_ordering: %d\n", p.header.color_ordering);           \
+        Serial.printf("num_pixels: %d\n", p.header.num_pixels);                   \
+        Serial.printf("animation_steps: %d\n", p.header.animation_steps);         \
+    }                                                                             \
+    else                                                                          \
+    {                                                                             \
+        Serial.println("Failed to open file from SD card.");                      \
+    }
 
 // Macro to validate data consistency
 #define CHECK_CACHED_PATTERN(p)                                     \
@@ -60,7 +67,7 @@ constexpr uint32_t total_pattern_leds(const uint32_t num_segments,
                             : 0;
 }
 
-extern const cached_pattern_t fire;
-extern const cached_pattern_t rainbow;
+extern cached_pattern_t fire;
+extern cached_pattern_t rainbow;
 
 #endif /*CACHED_PATTERN_H*/

@@ -1,4 +1,5 @@
 #include "led_array.h"
+#include "cached_patterns/cached_pattern.h"
 #include <Arduino.h>
 #include <lvgl.h>
 #include "ui/is_bed_ui.h"
@@ -57,6 +58,11 @@ static void lv_print(lv_log_level_t level, const char *buf);
 static void lv_touchpad_read(lv_indev_t *indev, lv_indev_data_t *data);
 static void lv_encoder_read(lv_indev_t *indev, lv_indev_data_t *data);
 static void led_refresh_cb(lv_timer_t *timer);
+static void heartbeat_cb(lv_timer_t *timer);
+static void mtp_cb(lv_timer_t *timer);
+
+
+#define HEARTBEAT_PERIOD_MS 1700
 
 //
 // The main setup function
@@ -150,22 +156,24 @@ void setup()
     digitalWrite(STATUS_GREEN, HIGH);
     digitalWrite(STATUS_RED, LOW);
 
-    MTP.begin();
-
     // Add the SD Card
     if (SD.begin(SD_ChipSelect))
     {
-        MTP.addFilesystem(SD, "SD_Card");
         Serial.println("SD Card initialized");
+        CACHED_PATTERN_LOAD(fire);
+
+        // Start MTP
+        // MTP.begin();
+        // MTP.addFilesystem(SD, "SD_Card");
+        // lv_timer_create(mtp_cb, 1000 / LED_REFRESH_RATE_HZ, NULL);
     }
+    
 }
 
 void loop()
 {
     // Main LVGL loop
     lv_timer_handler();
-
-    MTP.loop();
 }
 
 // Provides LVGL with access to the timer
@@ -246,7 +254,7 @@ static void lv_encoder_read(lv_indev_t *indev, lv_indev_data_t *data)
 static void led_refresh_cb(lv_timer_t *timer)
 {
     uint32_t now = millis();
-    for (uint32_t i = 0; i < num_led_channels; i++)
+    for (uint32_t i = 0; i < num_strings; i++)
     {
         led_string_t *led_string = &led_strings[i];
         for (uint32_t j = 0; j < led_string->num_segments; j++)
@@ -266,7 +274,9 @@ static void led_refresh_cb(lv_timer_t *timer)
             for (uint32_t k = segment->string_offset; k < segment->string_offset + segment->num_leds; k++)
             {
                 uint32_t color_u32 = 0x000000;
-                leds_crgb[k].nscale8(zone->brightness);
+                // leds_crgb[k].nscale8(zone->brightness);
+
+                // leds_crgb[k] = CRGB::Red;
                 switch (zone->color_ordering)
                 {
                 case WS2811_RGB:
@@ -291,10 +301,16 @@ static void led_refresh_cb(lv_timer_t *timer)
                     color_u32 = 0x000000;
                     break;
                 }
-
-                leds.setPixel(i * max_leds_per_channel + k, color_u32);
+ 
+                
+                leds.setPixel(led_string->channel * max_leds_per_channel + k, color_u32);
             }
         }
     }
     leds.show();
+}
+
+// Update MTP
+static void mtp_cb(lv_timer_t *timer) {
+    MTP.loop();
 }
