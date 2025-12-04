@@ -38,4 +38,5 @@ extern led_pattern_t led_patterns[];
 // Number of patterns available
 extern uint32_t num_led_patterns();
 
+
 #endif // LED_PATTERN_H

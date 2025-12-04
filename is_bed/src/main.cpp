@@ -160,12 +160,19 @@ void setup()
     if (SD.begin(SD_ChipSelect))
     {
         Serial.println("SD Card initialized");
+        CACHED_PATTERN_LOAD(abstract_gradient);
+        CACHED_PATTERN_LOAD(blue_light_rays);
+        CACHED_PATTERN_LOAD(color_roll);
         CACHED_PATTERN_LOAD(fire);
+        CACHED_PATTERN_LOAD(flash);
+        CACHED_PATTERN_LOAD(matrix);
+        CACHED_PATTERN_LOAD(rainbow);
+        CACHED_PATTERN_LOAD(space_warp);
 
         // Start MTP
-        // MTP.begin();
-        // MTP.addFilesystem(SD, "SD_Card");
-        // lv_timer_create(mtp_cb, 1000 / LED_REFRESH_RATE_HZ, NULL);
+        MTP.begin();
+        MTP.addFilesystem(SD, "SD_Card");
+        lv_timer_create(mtp_cb, 1000 / LED_REFRESH_RATE_HZ, NULL);
     }
     
 }
@@ -247,7 +254,7 @@ static void lv_encoder_read(lv_indev_t *indev, lv_indev_data_t *data)
     // Read the switch state
     data->state = encoders.digitalRead(SS_ENC_SWITCH_PIN[encoder_index]) ? LV_INDEV_STATE_REL : LV_INDEV_STATE_PR;
     // Read the encoder delta. Apply some gain to make the encoder more sensitive.
-    data->enc_diff = -encoders.getEncoderDelta(encoder_index) * 20;
+    data->enc_diff = -encoders.getEncoderDelta(encoder_index);
 }
 
 // Refresh the LEDs

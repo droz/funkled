@@ -21,6 +21,8 @@ struct __attribute__((packed)) cached_pattern_header_t
     uint16_t num_pixels;
     // The number of animation steps stored.
     uint16_t animation_steps;
+    // The nominal animation period in seconds.
+    uint16_t animation_period_s;
 };
 
 typedef struct
@@ -42,6 +44,7 @@ typedef struct
         Serial.printf("color_ordering: %d\n", p.header.color_ordering);           \
         Serial.printf("num_pixels: %d\n", p.header.num_pixels);                   \
         Serial.printf("animation_steps: %d\n", p.header.animation_steps);         \
+        Serial.printf("animation_period_s: %d\n", p.header.animation_period_s);   \
     }                                                                             \
     else                                                                          \
     {                                                                             \
@@ -67,7 +70,13 @@ constexpr uint32_t total_pattern_leds(const uint32_t num_segments,
                             : 0;
 }
 
+extern cached_pattern_t abstract_gradient;
+extern cached_pattern_t blue_light_rays;
+extern cached_pattern_t color_roll;
 extern cached_pattern_t fire;
+extern cached_pattern_t flash;
+extern cached_pattern_t matrix;
 extern cached_pattern_t rainbow;
+extern cached_pattern_t space_warp;
 
 #endif /*CACHED_PATTERN_H*/
