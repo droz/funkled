@@ -183,7 +183,3 @@ uint32_t num_led_patterns()
 {
     return sizeof(led_patterns) / sizeof(led_pattern_t);
 }
-
-
-
-uint32_t pattern_index = 0;
