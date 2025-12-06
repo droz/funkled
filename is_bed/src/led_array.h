@@ -22,6 +22,11 @@ const uint32_t CHANNEL_CURRENT = 0xFFFFFFFF;
 
 const uint32_t num_strings = 5;
 
+#define ZONE_CAGE 0
+#define ZONE_CENTER 1
+#define ZONE_FRONT 2
+#define ZONE_HEADBOARD 3
+
 //
 // Typedefs
 //

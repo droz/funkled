@@ -43,14 +43,14 @@ LV_IMAGE_DECLARE(front);
 LV_IMAGE_DECLARE(headboard);
 LV_IMAGE_DECLARE(cage);
 static composite_image_layer_t layers[] = {
-    {.image_dsc = center,
-     .led_string = &led_strings[0]},
-    {.image_dsc = front,
-     .led_string = &led_strings[1]},
-    {.image_dsc = headboard,
-     .led_string = &led_strings[2]},
     {.image_dsc = cage,
-     .led_string = &led_strings[3]}};
+     .led_string = &led_strings[0]},
+    {.image_dsc = center,
+     .led_string = &led_strings[1]},
+    {.image_dsc = front,
+     .led_string = &led_strings[2]},
+    {.image_dsc = headboard,
+     .led_string = &led_strings[4]}};
 static DMAMEM uint8_t composite_buffer[TFT_HOR_RES * TFT_VER_RES * 3];
 static composite_image_dsc_t composite_dsc = {
     .buffer = composite_buffer,
@@ -89,11 +89,11 @@ void is_bed_ui(void)
     lv_obj_clear_flag(screen_w, LV_OBJ_FLAG_SCROLLABLE);
 
     background_image_w = composite_image_create(screen_w, &composite_dsc);
-    pattern_roller_w = pattern_roller_create(screen_w, pattern_changed_cb, encoder_groups[0], 0);
-    // center_brightness_w = brightness_slider_create(screen_w, brightness_changed_cb, encoder_groups[0], 0);
-    front_brightness_w = brightness_slider_create(screen_w, brightness_changed_cb, encoder_groups[1], 1);
-    headboard_brightness_w = brightness_slider_create(screen_w, brightness_changed_cb, encoder_groups[2], 2);
-    cage_brightness_w = brightness_slider_create(screen_w, brightness_changed_cb, encoder_groups[3], 3);
+    pattern_roller_w = pattern_roller_create(screen_w, pattern_changed_cb, encoder_groups[0]);
+    center_brightness_w = brightness_slider_create(screen_w, brightness_changed_cb, encoder_groups[1], ZONE_CENTER);
+    front_brightness_w = brightness_slider_create(screen_w, brightness_changed_cb, encoder_groups[2], ZONE_FRONT);
+    cage_brightness_w = brightness_slider_create(screen_w, brightness_changed_cb, encoder_groups[3], ZONE_CAGE);
+    // headboard_brightness_w = brightness_slider_create(screen_w, brightness_changed_cb, encoder_groups[1], ZONE_HEADBOARD);
 }
 
 //
@@ -103,10 +103,14 @@ static void brightness_changed_cb(lv_event_t *e)
 {
     // Get the slider widget that triggered the event
     lv_obj_t *slider_w = (lv_obj_t *)lv_event_get_target(e);
-    // Get the index of the corresponding LEDs from the user data
-    uint32_t index = (uint32_t)lv_obj_get_user_data(slider_w);
+    // Get the zone of the corresponding LEDs from the user data
+    uint32_t zone = (uint32_t)lv_obj_get_user_data(slider_w);
     // Get the current brightness value from the slider
-    uint32_t brightness = lv_slider_get_value(slider_w);
+    int32_t min_value = lv_slider_get_min_value(slider_w);
+    int32_t max_value = lv_slider_get_max_value(slider_w);
+    int32_t slider_value = lv_slider_get_value(slider_w);
+    float_t slider_percent = (float)slider_value / (max_value - min_value);
+    uint32_t brightness = slider_percent * 255.0;
     // When the user presses the button, we want to update the brightness to zero or full
     if (lv_event_get_code(e) == LV_EVENT_KEY && lv_event_get_key(e) == LV_KEY_ENTER)
     {
@@ -121,7 +125,11 @@ static void brightness_changed_cb(lv_event_t *e)
         lv_slider_set_value(slider_w, brightness, LV_ANIM_OFF); // Update the slider value
     }
     // Update the corresponding LED string brightness
-    led_zones[index].brightness = brightness;
+    led_zones[zone].brightness = brightness;
+    // Control HEADBOARD with CENTER knob.
+    if (zone == ZONE_CENTER) {
+       led_zones[ZONE_HEADBOARD].brightness = brightness; 
+    }
 }
 
 

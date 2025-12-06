@@ -12,11 +12,6 @@ static const int32_t default_palette_index = 0;
 static const int32_t default_update_period_ms = 3000;
 static const uint8_t default_brightness = 255;
 
-#define ZONE_CAGE 0
-#define ZONE_CENTER 1
-#define ZONE_FRONT 2
-#define ZONE_HEADBOARD 3
-
 CRGB leds_crgb[max_leds_per_channel];
 
 led_zone_t led_zones[] = {
