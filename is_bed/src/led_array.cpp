@@ -66,11 +66,13 @@ led_segment_t post_front_left_segments[] = {
         .name = "Frame Right",
         .num_leds = 21,
         .string_offset = 24,
+        .zone = ZONE_CENTER,
     },
     {
         .name = "Frame Left",
         .num_leds = 21,
         .string_offset = 45,
+        .zone = ZONE_CENTER,
     },
 };
 
