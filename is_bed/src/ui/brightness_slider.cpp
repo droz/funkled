@@ -42,7 +42,7 @@ lv_obj_t *brightness_slider_create(lv_obj_t *parent, lv_event_cb_t slider_change
     lv_group_set_editing(encoder_group, true);
     lv_group_focus_freeze(encoder_group, true);
     // Call the callback to set the initial value
-    lv_slider_set_value(slider_w, 0, LV_ANIM_OFF);
+    lv_slider_set_value(slider_w, 255, LV_ANIM_OFF);
     lv_obj_send_event(slider_w, LV_EVENT_KEY, NULL);
     return slider_w;
 }
