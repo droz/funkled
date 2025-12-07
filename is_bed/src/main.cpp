@@ -1,4 +1,5 @@
 #include "led_array.h"
+#include "cached_patterns/cached_pattern.h"
 #include <Arduino.h>
 #include <lvgl.h>
 #include "ui/is_bed_ui.h"
@@ -7,6 +8,10 @@
 #include <OctoWS2811.h>
 #include <Wire.h>
 #include <Adafruit_seesaw.h>
+#include <SD.h>
+#include <MTP_Teensy.h>
+
+const int SD_ChipSelect = BUILTIN_SDCARD;
 
 // Touchscreen
 #define TOUCH_RST_PIN 37
@@ -53,6 +58,11 @@ static void lv_print(lv_log_level_t level, const char *buf);
 static void lv_touchpad_read(lv_indev_t *indev, lv_indev_data_t *data);
 static void lv_encoder_read(lv_indev_t *indev, lv_indev_data_t *data);
 static void led_refresh_cb(lv_timer_t *timer);
+static void heartbeat_cb(lv_timer_t *timer);
+static void mtp_cb(lv_timer_t *timer);
+
+
+#define HEARTBEAT_PERIOD_MS 1700
 
 //
 // The main setup function
@@ -145,6 +155,26 @@ void setup()
     Serial.println("Setup done");
     digitalWrite(STATUS_GREEN, HIGH);
     digitalWrite(STATUS_RED, LOW);
+
+    // Add the SD Card
+    if (SD.begin(SD_ChipSelect))
+    {
+        Serial.println("SD Card initialized");
+        CACHED_PATTERN_LOAD(abstract_gradient);
+        CACHED_PATTERN_LOAD(blue_light_rays);
+        CACHED_PATTERN_LOAD(color_roll);
+        CACHED_PATTERN_LOAD(fire);
+        CACHED_PATTERN_LOAD(flash);
+        CACHED_PATTERN_LOAD(matrix);
+        CACHED_PATTERN_LOAD(rainbow);
+        CACHED_PATTERN_LOAD(space_warp);
+
+        // Start MTP
+        MTP.begin();
+        MTP.addFilesystem(SD, "SD_Card");
+        lv_timer_create(mtp_cb, 1000 / LED_REFRESH_RATE_HZ, NULL);
+    }
+    
 }
 
 void loop()
@@ -224,14 +254,14 @@ static void lv_encoder_read(lv_indev_t *indev, lv_indev_data_t *data)
     // Read the switch state
     data->state = encoders.digitalRead(SS_ENC_SWITCH_PIN[encoder_index]) ? LV_INDEV_STATE_REL : LV_INDEV_STATE_PR;
     // Read the encoder delta. Apply some gain to make the encoder more sensitive.
-    data->enc_diff = -encoders.getEncoderDelta(encoder_index) * 20;
+    data->enc_diff = -encoders.getEncoderDelta(encoder_index);
 }
 
 // Refresh the LEDs
 static void led_refresh_cb(lv_timer_t *timer)
 {
     uint32_t now = millis();
-    for (uint32_t i = 0; i < num_led_channels; i++)
+    for (uint32_t i = 0; i < num_strings; i++)
     {
         led_string_t *led_string = &led_strings[i];
         for (uint32_t j = 0; j < led_string->num_segments; j++)
@@ -244,12 +274,15 @@ static void led_refresh_cb(lv_timer_t *timer)
                     zone->update_period_ms,
                     composed_palette(&led_palettes[zone->palette_index], zone->single_color),
                     zone->single_color,
+                    i,
+                    j,
                     segment->num_leds,
                     leds_crgb + segment->string_offset);
             for (uint32_t k = segment->string_offset; k < segment->string_offset + segment->num_leds; k++)
             {
                 uint32_t color_u32 = 0x000000;
                 leds_crgb[k].nscale8(zone->brightness);
+
                 switch (zone->color_ordering)
                 {
                 case WS2811_RGB:
@@ -274,10 +307,16 @@ static void led_refresh_cb(lv_timer_t *timer)
                     color_u32 = 0x000000;
                     break;
                 }
-
-                leds.setPixel(i * max_leds_per_channel + k, color_u32);
+ 
+                
+                leds.setPixel(led_string->channel * max_leds_per_channel + k, color_u32);
             }
         }
     }
     leds.show();
+}
+
+// Update MTP
+static void mtp_cb(lv_timer_t *timer) {
+    MTP.loop();
 }

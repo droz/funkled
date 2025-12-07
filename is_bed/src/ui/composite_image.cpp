@@ -59,6 +59,8 @@ void composite_image_update(const composite_image_dsc_t *dsc)
             led_zones[i].update_period_ms,
             composed_palette(&led_palettes[led_zones[i].palette_index], led_zones[i].single_color),
             led_zones[i].single_color,
+            0,
+            0,
             num_leds,
             leds);
         uint32_t total_red = 0;

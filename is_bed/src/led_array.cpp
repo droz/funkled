@@ -12,11 +12,6 @@ static const int32_t default_palette_index = 0;
 static const int32_t default_update_period_ms = 3000;
 static const uint8_t default_brightness = 255;
 
-#define ZONE_CAGE 0
-#define ZONE_CENTER 1
-#define ZONE_FRONT 2
-#define ZONE_HEADBOARD 3
-
 CRGB leds_crgb[max_leds_per_channel];
 
 led_zone_t led_zones[] = {
@@ -71,11 +66,13 @@ led_segment_t post_front_left_segments[] = {
         .name = "Frame Right",
         .num_leds = 21,
         .string_offset = 24,
+        .zone = ZONE_CENTER,
     },
     {
         .name = "Frame Left",
         .num_leds = 21,
         .string_offset = 45,
+        .zone = ZONE_CENTER,
     },
 };
 
@@ -184,26 +181,116 @@ led_segment_t post_rear_right_segments[] = {
     },
 };
 
+led_segment_t headboard_segments[] = {
+    {
+        .name = "Top left",
+        .num_leds = 10,
+        .string_offset = 0,
+        .zone = ZONE_HEADBOARD,
+    },
+    {
+        .name = "Cross Top Left",
+        .num_leds = 8,
+        .string_offset = 10,
+        .zone = ZONE_HEADBOARD,
+    },
+    {
+        .name = "Top Middle",
+        .num_leds = 8,
+        .string_offset = 18,
+        .zone = ZONE_HEADBOARD,
+    },
+    {
+        .name = "Cross Top Right",
+        .num_leds = 8,
+        .string_offset = 26,
+        .zone = ZONE_HEADBOARD,
+    },
+    {
+        .name = "Top Right",
+        .num_leds = 10,
+        .string_offset = 34,
+        .zone = ZONE_HEADBOARD,
+    },
+    {
+        .name = "Right",
+        .num_leds = 14,
+        .string_offset = 44,
+        .zone = ZONE_HEADBOARD,
+    },
+    {
+        .name = "Bottom Right",
+        .num_leds = 10,
+        .string_offset = 58,
+        .zone = ZONE_HEADBOARD,
+    },
+    {
+        .name = "Cross Bottom Right",
+        .num_leds = 8,
+        .string_offset = 68,
+        .zone = ZONE_HEADBOARD,
+    },
+    {
+        .name = "Bottom Middle",
+        .num_leds = 8,
+        .string_offset = 76,
+        .zone = ZONE_HEADBOARD,
+    },
+    {
+        .name = "Cross Bottom Left",
+        .num_leds = 8,
+        .string_offset = 84,
+        .zone = ZONE_HEADBOARD,
+    },
+    {
+        .name = "Bottom left",
+        .num_leds = 10,
+        .string_offset = 92,
+        .zone = ZONE_HEADBOARD,
+    },
+    {
+        .name = "Left",
+        .num_leds = 14,
+        .string_offset = 102,
+        .zone = ZONE_HEADBOARD,
+    },
+};
+
+
 led_string_t led_strings[] = {
     {
         .name = "Post Front Left",
-        .num_segments = sizeof(post_front_left_segments) / sizeof(post_front_left_segments[0]),
+        .num_leds = leds_in_string(post_front_left_segments),
+        .num_segments = segments_in_string(post_front_left_segments),
         .segments = post_front_left_segments,
+        .channel = 6,
     },
     {
         .name = "Post Front Right",
-        .num_segments = sizeof(post_front_right_segments) / sizeof(post_front_right_segments[0]),
+        .num_leds = leds_in_string(post_front_right_segments),
+        .num_segments = segments_in_string(post_front_right_segments),
         .segments = post_front_right_segments,
+        .channel = 4,
     },
     {
         .name = "Post Rear Left",
-        .num_segments = sizeof(post_rear_left_segments) / sizeof(post_rear_left_segments[0]),
+        .num_leds = leds_in_string(post_rear_left_segments),
+        .num_segments = segments_in_string(post_rear_left_segments),
         .segments = post_rear_left_segments,
+        .channel = 7,
     },
     {
         .name = "Post Rear Right",
-        .num_segments = sizeof(post_rear_right_segments) / sizeof(post_rear_right_segments[0]),
+        .num_leds = leds_in_string(post_rear_right_segments),
+        .num_segments = segments_in_string(post_rear_right_segments),
         .segments = post_rear_right_segments,
+        .channel = 3,
+    },
+    {
+        .name = "Headboard",
+        .num_segments = sizeof(headboard_segments) / sizeof(headboard_segments[0]),
+        .segments = headboard_segments,
+        .channel = 5,
     },
 };
 
