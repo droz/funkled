@@ -120,6 +120,11 @@ void space_warp_pattern(uint32_t time_ms, uint32_t period_ms, const CRGBPalette1
     cached_pattern(&space_warp, time_ms, string_index, segment_index, num_leds, leds);
 }
 
+void abstract_gradient_pattern(uint32_t time_ms, uint32_t period_ms, const CRGBPalette16 *palette, CRGB single_color, uint32_t string_index, uint32_t segment_index, uint32_t num_leds, CRGB *leds)
+{
+    cached_pattern(&abstract_gradient, time_ms, string_index, segment_index, num_leds, leds);
+}
+
 
 led_pattern_t led_patterns[] = {
      {
@@ -128,20 +133,20 @@ led_pattern_t led_patterns[] = {
         .update = fire_pattern,
     },
     {
+        .name = "Abstract Gradient",
+        .desc = "Abstract Gradient",
+        .update = abstract_gradient_pattern,
+    },
+    {
         .name = "Blue Light Rays",
         .desc = "Blue Light Rays",
         .update = blue_light_rays_pattern,
     },
-    {
-        .name = "Color Roll",
-        .desc = "Color Roll",
-        .update = color_roll_pattern,
-    },
-    {
-        .name = "Flash",
-        .desc = "Flash",
-        .update = flash_pattern,
-    },
+    // {
+    //     .name = "Color Roll",
+    //     .desc = "Color Roll",
+    //     .update = color_roll_pattern,
+    // },
     {
         .name = "Matrix",
         .desc = "Matrix",
@@ -157,26 +162,31 @@ led_pattern_t led_patterns[] = {
         .desc = "Space Warp",
         .update = space_warp_pattern,
     },
-    {
-        .name = "Rotate",
-        .desc = "Rotate through a palette",
-        .update = rotate_pattern,
+        {
+        .name = "Flash",
+        .desc = "Flash",
+        .update = flash_pattern,
     },
-    {
-        .name = "Static",
-        .desc = "Assign the LEDs to a static palette",
-        .update = static_pattern,
-    },
-    {
-        .name = "Fade",
-        .desc = "Fade IN and OUT",
-        .update = fade_pattern,
-    },
-    {
-        .name = "Blink",
-        .desc = "Blink ON and OFF",
-        .update = blink_pattern,
-    },
+    // {
+    //     .name = "Rotate",
+    //     .desc = "Rotate through a palette",
+    //     .update = rotate_pattern,
+    // },
+    // {
+    //     .name = "Static",
+    //     .desc = "Assign the LEDs to a static palette",
+    //     .update = static_pattern,
+    // },
+    // {
+    //     .name = "Fade",
+    //     .desc = "Fade IN and OUT",
+    //     .update = fade_pattern,
+    // },
+    // {
+    //     .name = "Blink",
+    //     .desc = "Blink ON and OFF",
+    //     .update = blink_pattern,
+    // },
 };
 
 uint32_t num_led_patterns()
