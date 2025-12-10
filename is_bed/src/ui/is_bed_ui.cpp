@@ -5,7 +5,7 @@
 #include "led_array.h"
 #include "slider.h"
 #include "brightness_slider.h"
-#include "pattern_roller.h"
+#include "pattern_slider.h"
 #include <Arduino.h>
 #include <FastLED.h>
 
@@ -17,7 +17,7 @@
 // Static prototypes
 //
 static void brightness_changed_cb(lv_event_t *e);
-static void pattern_changed_cb(lv_event_t *e);
+static void pattern_changed_cb(uint32_t pattern_index);
 
 //
 // Static variables
@@ -31,7 +31,7 @@ static lv_obj_t *center_brightness_w;
 static lv_obj_t *front_brightness_w;
 static lv_obj_t *headboard_brightness_w;
 static lv_obj_t *cage_brightness_w;
-static lv_obj_t *pattern_roller_w;
+static lv_obj_t *pattern_slider_w;
 
 // The encoder groups
 static lv_group_t *encoder_groups[4];
@@ -89,11 +89,11 @@ void is_bed_ui(void)
     lv_obj_clear_flag(screen_w, LV_OBJ_FLAG_SCROLLABLE);
 
     background_image_w = composite_image_create(screen_w, &composite_dsc);
-    pattern_roller_w = pattern_roller_create(screen_w, pattern_changed_cb, encoder_groups[0]);
-    center_brightness_w = brightness_slider_create(screen_w, brightness_changed_cb, encoder_groups[1], ZONE_CENTER);
-    front_brightness_w = brightness_slider_create(screen_w, brightness_changed_cb, encoder_groups[2], ZONE_FRONT);
+    pattern_slider_w = pattern_slider_create(screen_w, pattern_changed_cb, encoder_groups[0]);
+    center_brightness_w = brightness_slider_create(screen_w, brightness_changed_cb, encoder_groups[0], ZONE_CENTER);
+    front_brightness_w = brightness_slider_create(screen_w, brightness_changed_cb, encoder_groups[1], ZONE_FRONT);
+    headboard_brightness_w = brightness_slider_create(screen_w, brightness_changed_cb, encoder_groups[2], ZONE_HEADBOARD);
     cage_brightness_w = brightness_slider_create(screen_w, brightness_changed_cb, encoder_groups[3], ZONE_CAGE);
-    // headboard_brightness_w = brightness_slider_create(screen_w, brightness_changed_cb, encoder_groups[1], ZONE_HEADBOARD);
 }
 
 //
@@ -126,21 +126,13 @@ static void brightness_changed_cb(lv_event_t *e)
     }
     // Update the corresponding LED string brightness
     led_zones[zone].brightness = brightness;
-    // Control HEADBOARD with CENTER knob.
-    if (zone == ZONE_CENTER) {
-       led_zones[ZONE_HEADBOARD].brightness = brightness; 
-    }
 }
 
 
-static void pattern_changed_cb(lv_event_t *e)
+static void pattern_changed_cb(uint32_t pattern_index)
 {
-    // Get the slider widget that triggered the event
-    lv_obj_t *roller_w = (lv_obj_t *)lv_event_get_target(e);
-    // Get the selected pattern.
-    uint32_t pattern_index = lv_roller_get_selected(roller_w);
     for (uint32_t i = 0; i < num_zones; i++)
     {
-          led_zones[i].pattern_index = pattern_index;
+          led_zones[i].ui_pattern_index = pattern_index;
     }
 }    

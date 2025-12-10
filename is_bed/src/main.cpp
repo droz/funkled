@@ -268,7 +268,7 @@ static void led_refresh_cb(lv_timer_t *timer)
         {
             led_segment_t *segment = &led_string->segments[j];
             led_zone_t *zone = &led_zones[segment->zone];
-            led_patterns[zone->pattern_index]
+            led_patterns[zone->led_pattern_index]
                 .update(
                     now,
                     zone->update_period_ms,
@@ -282,7 +282,8 @@ static void led_refresh_cb(lv_timer_t *timer)
             {
                 uint32_t color_u32 = 0x000000;
                 leds_crgb[k].nscale8(zone->brightness);
-
+                // The green LEDs are stronger than the other colors. Dim them a little bit to help with color balance.
+                leds_crgb[k].g = scale8(leds_crgb[k].g, 200);
                 switch (zone->color_ordering)
                 {
                 case WS2811_RGB:

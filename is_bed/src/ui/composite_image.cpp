@@ -54,7 +54,7 @@ void composite_image_update(const composite_image_dsc_t *dsc)
     for (uint32_t i = 0; i < dsc->layer_count; i++)
     {
         CRGB leds[num_leds];
-        led_patterns[led_zones[i].pattern_index].update(
+        led_patterns[led_zones[i].ui_pattern_index].update(
             millis() * (100 + i) / 100, // To create a phase shift between the patterns
             led_zones[i].update_period_ms,
             composed_palette(&led_palettes[led_zones[i].palette_index], led_zones[i].single_color),

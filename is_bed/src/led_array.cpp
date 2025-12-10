@@ -17,7 +17,8 @@ CRGB leds_crgb[max_leds_per_channel];
 led_zone_t led_zones[] = {
     {
         .name = "Cage",
-        .pattern_index = default_pattern_index,
+        .led_pattern_index = default_pattern_index,
+        .ui_pattern_index = default_pattern_index,
         .single_color = default_single_color,
         .palette_index = default_palette_index,
         .update_period_ms = default_update_period_ms,
@@ -25,7 +26,8 @@ led_zone_t led_zones[] = {
     },
     {
         .name = "Center",
-        .pattern_index = default_pattern_index,
+        .led_pattern_index = default_pattern_index,
+        .ui_pattern_index = default_pattern_index,
         .single_color = default_single_color,
         .palette_index = default_palette_index,
         .update_period_ms = default_update_period_ms,
@@ -33,7 +35,8 @@ led_zone_t led_zones[] = {
     },
     {
         .name = "Front",
-        .pattern_index = default_pattern_index,
+        .led_pattern_index = default_pattern_index,
+        .ui_pattern_index = default_pattern_index,
         .single_color = default_single_color,
         .palette_index = default_palette_index,
         .update_period_ms = default_update_period_ms,
@@ -41,7 +44,8 @@ led_zone_t led_zones[] = {
     },
     {
         .name = "Headboard",
-        .pattern_index = default_pattern_index,
+        .led_pattern_index = default_pattern_index,
+        .ui_pattern_index = default_pattern_index,
         .single_color = default_single_color,
         .palette_index = default_palette_index,
         .update_period_ms = default_update_period_ms,

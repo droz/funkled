@@ -115,7 +115,7 @@ static void animate_roller(lv_obj_t *roller_w, bool show, bool fast)
     {
         lv_anim_set_values(&a, 0, 256);
     }
-    lv_anim_set_duration(&a, (show || fast) ? 400 : 2000);
+    lv_anim_set_duration(&a, (show || fast) ? 400 : 400);
     lv_anim_start(&a);
 }
 

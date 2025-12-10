@@ -129,17 +129,17 @@ void abstract_gradient_pattern(uint32_t time_ms, uint32_t period_ms, const CRGBP
 led_pattern_t led_patterns[] = {
      {
         .name = "Fire",
-        .desc = "Fire pattern",
+        .desc = "Fire Pattern",
         .update = fire_pattern,
     },
     {
-        .name = "Abstract Gradient",
+        .name = "Gradient",
         .desc = "Abstract Gradient",
         .update = abstract_gradient_pattern,
     },
     {
-        .name = "Blue Light Rays",
-        .desc = "Blue Light Rays",
+        .name = "Blue Rays",
+        .desc = "Blue Rays",
         .update = blue_light_rays_pattern,
     },
     // {

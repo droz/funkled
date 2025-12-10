@@ -29,7 +29,7 @@ lv_obj_t *brightness_slider_create(lv_obj_t *parent, lv_event_cb_t slider_change
     lv_obj_add_event_cb(slider_w, slider_changed_local_cb, LV_EVENT_KEY, NULL);
     lv_obj_add_event_cb(slider_w, slider_changed_local_cb, LV_EVENT_PRESSING, NULL);
     // Some custom formatting
-    lv_obj_align(slider_w, LV_ALIGN_BOTTOM_MID, 0, 0);
+    lv_obj_align(slider_w, LV_ALIGN_TOP_MID, 0, 0);
     lv_obj_set_style_opa(slider_w, LV_OPA_TRANSP, 0);
     lv_obj_set_height(slider_w, 30);
     lv_obj_set_width(slider_w, LV_PCT(95));
@@ -76,7 +76,7 @@ static void slider_changed_local_cb(lv_event_t *e)
     if (slider_hide_timer == NULL)
     {
         // The timer does not exist, create it
-        slider_hide_timer = lv_timer_create(timer_hide_slider_cb, 3000, slider_w); // Hide after 3 seconds
+        slider_hide_timer = lv_timer_create(timer_hide_slider_cb, 2000, slider_w); // Hide after 3 seconds
         lv_timer_set_repeat_count(slider_hide_timer, 1);                           // Only run once
     }
     // If the slider is already visible, no need to animate it again
@@ -100,14 +100,14 @@ static void animate_slider(lv_obj_t *slider_w, bool show, bool fast)
     {
         lv_anim_set_values(&a, 0, 256);
     }
-    lv_anim_set_duration(&a, (show || fast) ? 400 : 2000);
+    lv_anim_set_duration(&a, (show || fast) ? 400 : 400);
     lv_anim_start(&a);
 }
 
 static void slider_anim_cb(void *var, int32_t v)
 {
     lv_obj_t *slider_w = (lv_obj_t *)var;
-    int32_t y = lv_map(v, 0, 256, -20, 40);
+    int32_t y = lv_map(v, 0, 256, 5, -55);
     int32_t opa = lv_map(v, 0, 256, LV_OPA_COVER, LV_OPA_TRANSP);
     lv_obj_set_style_opa(slider_w, opa, 0);
     lv_obj_set_y(slider_w, y);

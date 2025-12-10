@@ -66,8 +66,10 @@ typedef struct
 {
     // The name of the zone.
     const char *name;
-    // The index of the pattern currently used by the zone
-    uint32_t pattern_index;
+    // The index of the pattern currently driving the LEDs
+    uint32_t led_pattern_index;
+    // The index of the pattern currently being displayed on the screen
+    uint32_t ui_pattern_index;
     // The color for non-palette patterns
     CRGB single_color;
     // The color ordering of the strip. Uses the OctoWS2811 constants
