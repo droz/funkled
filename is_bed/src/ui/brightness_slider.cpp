@@ -19,10 +19,9 @@ static void timer_hide_slider_cb(lv_timer_t *timer);
 //
 // Global functions
 //
-lv_obj_t *brightness_slider_create(lv_obj_t *parent, lv_event_cb_t slider_changed_cb, lv_group_t *encoder_group, uint32_t index)
-{
+lv_obj_t *brightness_slider_create(lv_obj_t *parent, lv_event_cb_t slider_changed_cb, lv_group_t *encoder_group, uint32_t index) {
     // Create the slider widgget.
-    lv_obj_t *slider_w = slider_create(parent, lv_color_hex(0x800000), slider_changed_cb);
+    lv_obj_t *slider_w = slider_create(parent, lv_color_hex(0xFFFFFF), slider_changed_cb);
     // Set the user data to the index of the corresponding LED string
     lv_obj_set_user_data(slider_w, (void *)index);
     // Add our own callback to the slider, to take care of the animation
@@ -31,9 +30,10 @@ lv_obj_t *brightness_slider_create(lv_obj_t *parent, lv_event_cb_t slider_change
     // Some custom formatting
     lv_obj_align(slider_w, LV_ALIGN_TOP_MID, 0, 0);
     lv_obj_set_style_opa(slider_w, LV_OPA_TRANSP, 0);
-    lv_obj_set_height(slider_w, 30);
-    lv_obj_set_width(slider_w, LV_PCT(95));
+    lv_obj_set_height(slider_w, 40);
+    lv_obj_set_width(slider_w, LV_PCT(90));
     lv_obj_set_style_bg_opa(slider_w, LV_OPA_TRANSP, LV_PART_INDICATOR);
+    lv_obj_set_style_bg_opa(slider_w, LV_OPA_COVER, LV_PART_MAIN);
     lv_obj_set_style_pad_right(slider_w, 15, 0);
     lv_obj_set_style_pad_left(slider_w, 15, 0);
     // Register the slider with the encoder group
@@ -76,7 +76,7 @@ static void slider_changed_local_cb(lv_event_t *e)
     if (slider_hide_timer == NULL)
     {
         // The timer does not exist, create it
-        slider_hide_timer = lv_timer_create(timer_hide_slider_cb, 2000, slider_w); // Hide after 3 seconds
+        slider_hide_timer = lv_timer_create(timer_hide_slider_cb, 2000, slider_w); // Hide after 2 seconds
         lv_timer_set_repeat_count(slider_hide_timer, 1);                           // Only run once
     }
     // If the slider is already visible, no need to animate it again
@@ -107,7 +107,7 @@ static void animate_slider(lv_obj_t *slider_w, bool show, bool fast)
 static void slider_anim_cb(void *var, int32_t v)
 {
     lv_obj_t *slider_w = (lv_obj_t *)var;
-    int32_t y = lv_map(v, 0, 256, 5, -55);
+    int32_t y = lv_map(v, 0, 256, 130, -55);
     int32_t opa = lv_map(v, 0, 256, LV_OPA_COVER, LV_OPA_TRANSP);
     lv_obj_set_style_opa(slider_w, opa, 0);
     lv_obj_set_y(slider_w, y);

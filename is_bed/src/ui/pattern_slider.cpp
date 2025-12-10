@@ -5,6 +5,11 @@
 #include <Arduino.h>
 
 //
+// Consts
+//
+static const uint32_t slider_size = 45; // Size of the buttons
+
+//
 // Local variables
 //
 // This is the main button that indicates which pattern is selected
@@ -57,7 +62,7 @@ lv_obj_t *pattern_slider_create(lv_obj_t *parent, pattern_changed_cb_t callback,
     // Left button
     lv_obj_t *left_btn_w = lv_btn_create(slider_w);
     lv_obj_add_event_cb(left_btn_w, left_btn_event_cb, LV_EVENT_CLICKED, NULL);
-    lv_obj_set_size(left_btn_w, 40, 40);
+    lv_obj_set_size(left_btn_w, slider_size, slider_size);
     lv_obj_t *lbl_left = lv_label_create(left_btn_w);
     lv_label_set_text(lbl_left, LV_SYMBOL_LEFT);
     lv_obj_center(lbl_left);
@@ -67,7 +72,7 @@ lv_obj_t *pattern_slider_create(lv_obj_t *parent, pattern_changed_cb_t callback,
     // Center button
     pattern_button_w = lv_btn_create(slider_w);
     lv_obj_set_style_bg_color(pattern_button_w, lv_color_hex(0x505050), 0);
-    lv_obj_set_height(pattern_button_w, 40);
+    lv_obj_set_height(pattern_button_w, slider_size);
     pattern_label_w = lv_label_create(pattern_button_w);
     lv_label_set_text(pattern_label_w, led_patterns[current_pattern_index].name);
     lv_obj_center(pattern_label_w);
@@ -77,7 +82,7 @@ lv_obj_t *pattern_slider_create(lv_obj_t *parent, pattern_changed_cb_t callback,
     // Right button
     lv_obj_t *right_btn_w = lv_btn_create(slider_w);
     lv_obj_add_event_cb(right_btn_w, right_btn_event_cb, LV_EVENT_CLICKED, NULL);
-    lv_obj_set_size(right_btn_w, 40, 40);
+    lv_obj_set_size(right_btn_w, slider_size, slider_size);
     lv_obj_t *lbl_right = lv_label_create(right_btn_w);
     lv_label_set_text(lbl_right, LV_SYMBOL_RIGHT);
     lv_obj_center(lbl_right);
@@ -85,6 +90,15 @@ lv_obj_t *pattern_slider_create(lv_obj_t *parent, pattern_changed_cb_t callback,
     lv_obj_set_style_text_font(right_btn_w, LV_FONT_DEFAULT, LV_PART_MAIN);
 
     return slider_w;
+}
+
+void pattern_slider_set_pattern(lv_obj_t *slider_w, uint32_t pattern_index)
+{
+    if (pattern_index >= num_led_patterns()) {
+        return; // Invalid pattern index
+    }
+    current_pattern_index = pattern_index;
+    lv_label_set_text(pattern_label_w, led_patterns[current_pattern_index].name);
 }
 
 //
@@ -96,12 +110,8 @@ static void left_btn_event_cb(lv_event_t *e)
 {
     // Decrement the pattern index
     current_pattern_index = (current_pattern_index == 0) ? num_led_patterns() - 1 : current_pattern_index - 1;
-    lv_label_set_text(pattern_label_w, led_patterns[current_pattern_index].name);
+    pattern_slider_set_pattern(pattern_button_w, current_pattern_index);
     pattern_changed_cb(current_pattern_index);
-    for (uint32_t i = 0; i < num_zones; i++)
-    {
-          led_zones[i].ui_pattern_index = current_pattern_index;
-    }
 }
 
 // Right button callback
@@ -109,7 +119,7 @@ static void right_btn_event_cb(lv_event_t *e)
 {
     // Increment the pattern index
     current_pattern_index = (current_pattern_index + 1) % num_led_patterns();
-    lv_label_set_text(pattern_label_w, led_patterns[current_pattern_index].name);
+    pattern_slider_set_pattern(pattern_button_w, current_pattern_index);
     pattern_changed_cb(current_pattern_index);
 }
 

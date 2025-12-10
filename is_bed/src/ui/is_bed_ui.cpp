@@ -18,6 +18,12 @@
 //
 static void brightness_changed_cb(lv_event_t *e);
 static void pattern_changed_cb(uint32_t pattern_index);
+static void ok_btn_event_cb(lv_event_t *e);
+static void cancel_btn_event_cb(lv_event_t *e);
+static void off_btn_event_cb(lv_event_t *e);
+static lv_obj_t *ok_button_create(lv_obj_t *parent);
+static lv_obj_t *cancel_button_create(lv_obj_t *parent);
+static lv_obj_t *off_button_create(lv_obj_t *parent);
 
 //
 // Static variables
@@ -32,6 +38,9 @@ static lv_obj_t *front_brightness_w;
 static lv_obj_t *headboard_brightness_w;
 static lv_obj_t *cage_brightness_w;
 static lv_obj_t *pattern_slider_w;
+static lv_obj_t *ok_btn_w;
+static lv_obj_t *cancel_btn_w;
+static lv_obj_t *off_button_w;
 
 // The encoder groups
 static lv_group_t *encoder_groups[4];
@@ -88,12 +97,69 @@ void is_bed_ui(void)
     lv_obj_t *screen_w = lv_screen_active();
     lv_obj_clear_flag(screen_w, LV_OBJ_FLAG_SCROLLABLE);
 
+    // Add the various widgets
     background_image_w = composite_image_create(screen_w, &composite_dsc);
+    ok_btn_w = ok_button_create(screen_w);
+    cancel_btn_w = cancel_button_create(screen_w);
+    off_button_w = off_button_create(screen_w);
     pattern_slider_w = pattern_slider_create(screen_w, pattern_changed_cb, encoder_groups[0]);
     center_brightness_w = brightness_slider_create(screen_w, brightness_changed_cb, encoder_groups[0], ZONE_CENTER);
     front_brightness_w = brightness_slider_create(screen_w, brightness_changed_cb, encoder_groups[1], ZONE_FRONT);
     headboard_brightness_w = brightness_slider_create(screen_w, brightness_changed_cb, encoder_groups[2], ZONE_HEADBOARD);
     cage_brightness_w = brightness_slider_create(screen_w, brightness_changed_cb, encoder_groups[3], ZONE_CAGE);
+}
+
+//
+// Private helper functions
+//
+static lv_obj_t *ok_button_create(lv_obj_t *parent)
+{
+    lv_obj_t *btn_w = lv_btn_create(parent);
+    lv_obj_add_event_cb(btn_w, ok_btn_event_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_set_style_bg_color(btn_w, lv_color_hex(0x64C364), 0);
+    lv_obj_set_size(btn_w, 50, 50);
+    lv_obj_align(btn_w, LV_ALIGN_BOTTOM_RIGHT, -5, -70);
+    lv_obj_set_style_radius(btn_w, LV_RADIUS_CIRCLE, 0);
+    lv_obj_t *label_w = lv_label_create(btn_w);
+    lv_label_set_text(label_w, LV_SYMBOL_OK);
+    lv_obj_center(label_w);
+    lv_obj_set_style_text_font(label_w, LV_FONT_DEFAULT, LV_PART_MAIN);
+    // We make the button invisible for now
+    lv_obj_add_flag(btn_w, LV_OBJ_FLAG_HIDDEN);
+
+    return btn_w;
+}
+static lv_obj_t *cancel_button_create(lv_obj_t *parent)
+{
+    lv_obj_t *btn_w = lv_btn_create(parent);
+    lv_obj_add_event_cb(btn_w, cancel_btn_event_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_set_style_bg_color(btn_w, lv_color_hex(0xC36464), 0);
+    lv_obj_set_size(btn_w, 50, 50);
+    lv_obj_align(btn_w, LV_ALIGN_BOTTOM_LEFT, 5, -70);
+    lv_obj_set_style_radius(btn_w, LV_RADIUS_CIRCLE, 0);
+    lv_obj_t *label_w = lv_label_create(btn_w);
+    lv_label_set_text(label_w, LV_SYMBOL_CLOSE);
+    lv_obj_center(label_w);
+    lv_obj_set_style_text_font(label_w, LV_FONT_DEFAULT, LV_PART_MAIN);
+    // We make the button invisible for now
+    lv_obj_add_flag(btn_w, LV_OBJ_FLAG_HIDDEN);
+
+    return btn_w;
+}
+static lv_obj_t *off_button_create(lv_obj_t *parent)
+{
+    lv_obj_t *btn_w = lv_btn_create(parent);
+    lv_obj_add_event_cb(btn_w, off_btn_event_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_set_style_bg_color(btn_w, lv_color_hex(0xC36464), 0);
+    lv_obj_set_size(btn_w, 50, 50);
+    lv_obj_align(btn_w, LV_ALIGN_TOP_LEFT, 5, 5);
+    lv_obj_set_style_radius(btn_w, LV_RADIUS_CIRCLE, 0);
+    lv_obj_t *label_w = lv_label_create(btn_w);
+    lv_label_set_text(label_w, LV_SYMBOL_POWER);
+    lv_obj_center(label_w);
+    lv_obj_set_style_text_font(label_w, LV_FONT_DEFAULT, LV_PART_MAIN);
+
+    return btn_w;
 }
 
 //
@@ -126,13 +192,79 @@ static void brightness_changed_cb(lv_event_t *e)
     }
     // Update the corresponding LED string brightness
     led_zones[zone].brightness = brightness;
+    // If all the brightnesses are zero, we can hide the off button
+    bool all_off = true;
+    for (uint32_t i = 0; i < num_zones; i++) {
+        if (led_zones[i].brightness > 0)
+            all_off = false;
+    }
+    if (all_off) {
+        lv_obj_add_flag(off_button_w, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_obj_clear_flag(off_button_w, LV_OBJ_FLAG_HIDDEN);
+    }    
 }
 
 
 static void pattern_changed_cb(uint32_t pattern_index)
 {
+    bool changed = false;
     for (uint32_t i = 0; i < num_zones; i++)
     {
           led_zones[i].ui_pattern_index = pattern_index;
+          if (led_zones[i].led_pattern_index != pattern_index) {
+              changed = true;
+          }
     }
-}    
+    // Show or hide the validate buttons depending on whether there was a change
+    if (changed) {
+        lv_obj_clear_flag(ok_btn_w, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_clear_flag(cancel_btn_w, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_obj_add_flag(ok_btn_w, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(cancel_btn_w, LV_OBJ_FLAG_HIDDEN);
+    }
+}
+
+static void ok_btn_event_cb(lv_event_t *e)
+{
+    // When the user clicks the validate button, we copy the UI pattern index to the actual pattern index
+    for (uint32_t i = 0; i < num_zones; i++)
+    {
+          led_zones[i].led_pattern_index = led_zones[i].ui_pattern_index;
+    }
+    // Hide the validate buttons
+    lv_obj_add_flag(ok_btn_w, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(cancel_btn_w, LV_OBJ_FLAG_HIDDEN);
+}
+
+static void cancel_btn_event_cb(lv_event_t *e)
+{
+    // When the user clicks the cancel button, we revert the UI pattern index to the actual pattern index
+    for (uint32_t i = 0; i < num_zones; i++)
+    {
+          led_zones[i].ui_pattern_index = led_zones[i].led_pattern_index;
+    }
+    // Update the pattern slider to reflect the reverted pattern
+    uint32_t pattern_index = led_zones[0].led_pattern_index;
+    pattern_slider_set_pattern(pattern_slider_w, pattern_index);
+    // Hide the validate buttons
+    lv_obj_add_flag(ok_btn_w, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(cancel_btn_w, LV_OBJ_FLAG_HIDDEN);
+}
+
+static void off_btn_event_cb(lv_event_t *e)
+{
+    // When the user clicks the off button, we set all brightnesses to zero
+    for (uint32_t i = 0; i < num_zones; i++)
+    {
+          led_zones[i].brightness = 0;
+    }
+    // Update all brightness sliders to reflect the change
+    lv_slider_set_value(center_brightness_w, 0, LV_ANIM_OFF);
+    lv_slider_set_value(front_brightness_w, 0, LV_ANIM_OFF);
+    lv_slider_set_value(headboard_brightness_w, 0, LV_ANIM_OFF);
+    lv_slider_set_value(cage_brightness_w, 0, LV_ANIM_OFF);
+    // Hide the off button
+    lv_obj_add_flag(off_button_w, LV_OBJ_FLAG_HIDDEN);
+}

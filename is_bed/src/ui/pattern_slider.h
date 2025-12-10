@@ -9,4 +9,7 @@ typedef void (*pattern_changed_cb_t)(uint32_t pattern_index);
 // Create a slider to select patterns
 lv_obj_t *pattern_slider_create(lv_obj_t *parent, pattern_changed_cb_t callback, lv_group_t *encoder_group);
 
+// Set the current pattern on the slider
+void pattern_slider_set_pattern(lv_obj_t *slider_w, uint32_t pattern_index);
+
 #endif // PATTERN_SLIDER_H

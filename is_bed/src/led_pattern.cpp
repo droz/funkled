@@ -158,7 +158,7 @@ led_pattern_t led_patterns[] = {
         .update = rainbow_pattern,
     },
     {
-        .name = "Space Warp",
+        .name = "Warp",
         .desc = "Space Warp",
         .update = space_warp_pattern,
     },
