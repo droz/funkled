@@ -2,10 +2,6 @@
 #include <numeric>
 
 //
-// Typedefs
-//
-
-//
 // Static prototypes
 //
 static void composite_image_timer_cb(lv_timer_t *timer);
@@ -124,10 +120,14 @@ static void composite_image_timer_cb(lv_timer_t *timer)
     // Get the user data
     lv_obj_t *canvas_w = (lv_obj_t *)lv_timer_get_user_data(timer);
     composite_image_dsc_t *dsc = (composite_image_dsc_t *)lv_obj_get_user_data(canvas_w);
-    // Update the composite image
+    // Update the composite image    
+# if LV_LOG_LEVEL <= LV_LOG_LEVEL_TRACE
     uint32_t tic = lv_tick_get();
+# endif
     composite_image_update(dsc);
     lv_obj_invalidate(canvas_w);
+# if LV_LOG_LEVEL <= LV_LOG_LEVEL_TRACE
     uint32_t toc = lv_tick_get();
+# endif
     LV_LOG_TRACE("Composite image updated in %lu ms", toc - tic);
 }

@@ -12,9 +12,9 @@
 //
 // Constants
 //
-static const uint32_t sliders_hide_delay_ms = 2000; // Time after which the sliders hide
-static const uint32_t sliders_anim_time_ms = 400;   // Time for the slider show/hide animation
-static const uint32_t sliders_spacing = 45;        // Vertical spacing between sliders
+static const uint32_t kSlidersHideDelayMs = 3000; // Time after which the sliders hide
+static const uint32_t kSlidersAnimTimeMs = 500;   // Time for the slider show/hide animation
+static const uint32_t kSlidersSpacing = 45;        // Vertical spacing between sliders
 
 //
 // Static prototypes
@@ -24,14 +24,19 @@ static void pattern_changed_cb(uint32_t pattern_index);
 static void ok_btn_event_cb(lv_event_t *e);
 static void cancel_btn_event_cb(lv_event_t *e);
 static void off_btn_event_cb(lv_event_t *e);
+static void on_btn_event_cb(lv_event_t *e);
 static void background_clicked_cb(lv_event_t *e);
 static lv_obj_t *ok_button_create(lv_obj_t *parent);
 static lv_obj_t *cancel_button_create(lv_obj_t *parent);
 static lv_obj_t *off_button_create(lv_obj_t *parent);
+static lv_obj_t *on_button_create(lv_obj_t *parent);
 static void animate_sliders(bool show);
 static void sliders_anim_cb(void *var, int32_t v);
 static void timer_hide_sliders_cb(lv_timer_t *timer);
 static void show_sliders();
+static void hide_sliders();
+static void validate_pattern();
+static void cancel_pattern();
 
 //
 // Static variables
@@ -49,6 +54,7 @@ static lv_obj_t *pattern_slider_w;
 static lv_obj_t *ok_btn_w;
 static lv_obj_t *cancel_btn_w;
 static lv_obj_t *off_button_w;
+static lv_obj_t *on_button_w;
 // This timer is used to hide the slider after a while
 static lv_timer_t *sliders_hide_timer = NULL;
 
@@ -82,8 +88,7 @@ static composite_image_dsc_t composite_dsc = {
 // Global functions
 //
 
-void is_bed_ui(void)
-{
+void is_bed_ui(void) {
     font_large = &lv_font_montserrat_16;
     font_normal = &lv_font_montserrat_12;
     lv_theme_default_init(NULL, lv_palette_main(LV_PALETTE_BLUE), lv_palette_main(LV_PALETTE_RED), LV_THEME_DEFAULT_DARK,
@@ -111,22 +116,20 @@ void is_bed_ui(void)
     // Add the various widgets
     background_image_w = composite_image_create(screen_w, background_clicked_cb, &composite_dsc);
     pattern_slider_w = pattern_slider_create(screen_w, pattern_changed_cb, encoder_groups[0]);
-    center_brightness_w = brightness_slider_create(screen_w, brightness_changed_cb, encoder_groups[0], ZONE_CENTER);
-    front_brightness_w = brightness_slider_create(screen_w, brightness_changed_cb, encoder_groups[1], ZONE_FRONT);
-    headboard_brightness_w = brightness_slider_create(screen_w, brightness_changed_cb, encoder_groups[2], ZONE_HEADBOARD);
-    cage_brightness_w = brightness_slider_create(screen_w, brightness_changed_cb, encoder_groups[3], ZONE_CAGE);
+    center_brightness_w = brightness_slider_create(screen_w, brightness_changed_cb, encoder_groups[0], ZONE_CENTER, "Bed");
+    front_brightness_w = brightness_slider_create(screen_w, brightness_changed_cb, encoder_groups[1], ZONE_FRONT, "Bench");
+    headboard_brightness_w = brightness_slider_create(screen_w, brightness_changed_cb, encoder_groups[2], ZONE_HEADBOARD, "Headboard");
+    cage_brightness_w = brightness_slider_create(screen_w, brightness_changed_cb, encoder_groups[3], ZONE_CAGE, "Cage");
     ok_btn_w = ok_button_create(screen_w);
     cancel_btn_w = cancel_button_create(screen_w);
     off_button_w = off_button_create(screen_w);
-    // Finally, send an initial event to locate the sliders correctly
-    lv_obj_send_event(center_brightness_w, LV_EVENT_KEY, NULL);
+    on_button_w = on_button_create(screen_w);
 }
 
 //
 // Private helper functions
 //
-static lv_obj_t *ok_button_create(lv_obj_t *parent)
-{
+static lv_obj_t *ok_button_create(lv_obj_t *parent) {
     lv_obj_t *btn_w = lv_btn_create(parent);
     lv_obj_add_event_cb(btn_w, ok_btn_event_cb, LV_EVENT_CLICKED, NULL);
     lv_obj_set_style_bg_color(btn_w, lv_color_hex(0x64C364), 0);
@@ -142,8 +145,8 @@ static lv_obj_t *ok_button_create(lv_obj_t *parent)
 
     return btn_w;
 }
-static lv_obj_t *cancel_button_create(lv_obj_t *parent)
-{
+
+static lv_obj_t *cancel_button_create(lv_obj_t *parent) {
     lv_obj_t *btn_w = lv_btn_create(parent);
     lv_obj_add_event_cb(btn_w, cancel_btn_event_cb, LV_EVENT_CLICKED, NULL);
     lv_obj_set_style_bg_color(btn_w, lv_color_hex(0xC36464), 0);
@@ -159,8 +162,8 @@ static lv_obj_t *cancel_button_create(lv_obj_t *parent)
 
     return btn_w;
 }
-static lv_obj_t *off_button_create(lv_obj_t *parent)
-{
+
+static lv_obj_t *off_button_create(lv_obj_t *parent) {
     lv_obj_t *btn_w = lv_btn_create(parent);
     lv_obj_add_event_cb(btn_w, off_btn_event_cb, LV_EVENT_CLICKED, NULL);
     lv_obj_set_style_bg_color(btn_w, lv_color_hex(0xC36464), 0);
@@ -168,9 +171,26 @@ static lv_obj_t *off_button_create(lv_obj_t *parent)
     lv_obj_align(btn_w, LV_ALIGN_TOP_LEFT, 5, 5);
     lv_obj_set_style_radius(btn_w, LV_RADIUS_CIRCLE, 0);
     lv_obj_t *label_w = lv_label_create(btn_w);
-    lv_label_set_text(label_w, LV_SYMBOL_POWER);
+    lv_label_set_text(label_w, LV_SYMBOL_EYE_CLOSE);
     lv_obj_center(label_w);
     lv_obj_set_style_text_font(label_w, LV_FONT_DEFAULT, LV_PART_MAIN);
+    lv_obj_set_style_opa(btn_w, LV_OPA_0, 0);
+
+    return btn_w;
+}
+
+static lv_obj_t *on_button_create(lv_obj_t *parent) {
+    lv_obj_t *btn_w = lv_btn_create(parent);
+    lv_obj_add_event_cb(btn_w, on_btn_event_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_set_style_bg_color(btn_w, lv_color_hex(0x64C364), 0);
+    lv_obj_set_size(btn_w, 50, 50);
+    lv_obj_align(btn_w, LV_ALIGN_TOP_RIGHT, -5, 5);
+    lv_obj_set_style_radius(btn_w, LV_RADIUS_CIRCLE, 0);
+    lv_obj_t *label_w = lv_label_create(btn_w);
+    lv_label_set_text(label_w, LV_SYMBOL_EYE_OPEN);
+    lv_obj_center(label_w);
+    lv_obj_set_style_text_font(label_w, LV_FONT_DEFAULT, LV_PART_MAIN);
+    lv_obj_set_style_opa(btn_w, LV_OPA_0, 0);
 
     return btn_w;
 }
@@ -185,7 +205,7 @@ static void animate_sliders(bool show)
     } else {
         lv_anim_set_values(&a, 0, 256);
     }
-    lv_anim_set_duration(&a, sliders_anim_time_ms);
+    lv_anim_set_duration(&a, kSlidersAnimTimeMs);
     lv_anim_start(&a);
 }
 
@@ -194,19 +214,60 @@ static void animate_sliders(bool show)
 //
 
 static void show_sliders() {
+    cancel_pattern();
     // If there is already a timer waiting and in this case we just reset it
     if (sliders_hide_timer != NULL) {
         lv_timer_reset(sliders_hide_timer);
     } else {
         // The timer does not exist, create it
-        sliders_hide_timer = lv_timer_create(timer_hide_sliders_cb, sliders_hide_delay_ms, NULL);
+        sliders_hide_timer = lv_timer_create(timer_hide_sliders_cb, kSlidersHideDelayMs, NULL);
         lv_timer_set_repeat_count(sliders_hide_timer, 1);                           // Only run once
     }
     // If the sliders are already visible, no need to animate it again
-    if (lv_obj_get_style_opa(center_brightness_w, 0) == LV_OPA_TRANSP)
-    {
+    if (lv_obj_get_style_opa(center_brightness_w, 0) == LV_OPA_TRANSP) {
         animate_sliders(true);
     }
+}
+
+static void hide_sliders() {
+    // Delete the timer if it exists
+    if (sliders_hide_timer != NULL) {
+        lv_timer_del(sliders_hide_timer);
+        sliders_hide_timer = NULL;
+    }
+    // If the sliders are already hidden, no need to animate it again
+    if (lv_obj_get_style_opa(center_brightness_w, 0) == LV_OPA_TRANSP) {
+        return;
+    }
+    // Animate the sliders to hide
+    if (lv_obj_get_style_opa(center_brightness_w, 0) != LV_OPA_TRANSP) {
+        animate_sliders(false);
+    }
+}
+
+static void validate_pattern()
+{
+    // We copy the UI pattern index to the actual pattern index
+    for (uint32_t i = 0; i < num_zones; i++) {
+        led_zones[i].led_pattern_index = led_zones[i].ui_pattern_index;
+    }
+    // Hide the validate buttons
+    lv_obj_add_flag(ok_btn_w, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(cancel_btn_w, LV_OBJ_FLAG_HIDDEN);
+}
+
+static void cancel_pattern()
+{
+    // We revert the UI pattern index to the actual pattern index
+    for (uint32_t i = 0; i < num_zones; i++) {
+        led_zones[i].ui_pattern_index = led_zones[i].led_pattern_index;
+    }
+    // Update the pattern slider to reflect the reverted pattern
+    uint32_t pattern_index = led_zones[0].led_pattern_index;
+    pattern_slider_set_pattern(pattern_slider_w, pattern_index);
+    // Hide the validate buttons
+    lv_obj_add_flag(ok_btn_w, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(cancel_btn_w, LV_OBJ_FLAG_HIDDEN);
 }
 
 static void brightness_changed_cb(lv_event_t *e)
@@ -239,6 +300,7 @@ static void brightness_changed_cb(lv_event_t *e)
 
 static void pattern_changed_cb(uint32_t pattern_index)
 {
+    hide_sliders();
     bool changed = false;
     for (uint32_t i = 0; i < num_zones; i++)
     {
@@ -257,35 +319,16 @@ static void pattern_changed_cb(uint32_t pattern_index)
     }
 }
 
-static void ok_btn_event_cb(lv_event_t *e)
-{
-    // When the user clicks the validate button, we copy the UI pattern index to the actual pattern index
-    for (uint32_t i = 0; i < num_zones; i++)
-    {
-          led_zones[i].led_pattern_index = led_zones[i].ui_pattern_index;
-    }
-    // Hide the validate buttons
-    lv_obj_add_flag(ok_btn_w, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(cancel_btn_w, LV_OBJ_FLAG_HIDDEN);
+static void ok_btn_event_cb(lv_event_t *e) {
+    validate_pattern();
 }
 
-static void cancel_btn_event_cb(lv_event_t *e)
-{
-    // When the user clicks the cancel button, we revert the UI pattern index to the actual pattern index
-    for (uint32_t i = 0; i < num_zones; i++)
-    {
-          led_zones[i].ui_pattern_index = led_zones[i].led_pattern_index;
-    }
-    // Update the pattern slider to reflect the reverted pattern
-    uint32_t pattern_index = led_zones[0].led_pattern_index;
-    pattern_slider_set_pattern(pattern_slider_w, pattern_index);
-    // Hide the validate buttons
-    lv_obj_add_flag(ok_btn_w, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(cancel_btn_w, LV_OBJ_FLAG_HIDDEN);
+static void cancel_btn_event_cb(lv_event_t *e) {
+    cancel_pattern();
 }
 
-static void off_btn_event_cb(lv_event_t *e)
-{
+static void off_btn_event_cb(lv_event_t *e) {
+    show_sliders();
     // When the user clicks the off button, we set all brightnesses to zero
     for (uint32_t i = 0; i < num_zones; i++)
     {
@@ -298,28 +341,45 @@ static void off_btn_event_cb(lv_event_t *e)
     lv_slider_set_value(cage_brightness_w, 0, LV_ANIM_OFF);
 }
 
-static void sliders_anim_cb(void *var, int32_t v)
-{
+static void on_btn_event_cb(lv_event_t *e) {
+    show_sliders();
+    // When the user clicks the on button, we set all brightnesses to max
+    for (uint32_t i = 0; i < num_zones; i++)
+    {
+          led_zones[i].brightness = 255;
+    }
+    // Update all brightness sliders to reflect the change
+    lv_slider_set_value(center_brightness_w, 255, LV_ANIM_OFF);
+    lv_slider_set_value(front_brightness_w, 255, LV_ANIM_OFF);
+    lv_slider_set_value(headboard_brightness_w, 255, LV_ANIM_OFF);
+    lv_slider_set_value(cage_brightness_w, 255, LV_ANIM_OFF);
+}
+
+static void sliders_anim_cb(void *var, int32_t v) {
     int32_t y = lv_map(v, 0, 256, 70, -200);
     int32_t opa = lv_map(v, 0, 256, LV_OPA_COVER, LV_OPA_TRANSP);
     lv_obj_set_style_opa(center_brightness_w, opa, 0);
     lv_obj_set_style_opa(front_brightness_w, opa, 0);
     lv_obj_set_style_opa(headboard_brightness_w, opa, 0);
     lv_obj_set_style_opa(cage_brightness_w, opa, 0);
+    lv_obj_set_style_opa(off_button_w, opa, 0);
+    lv_obj_set_style_opa(on_button_w, opa, 0);
     lv_obj_set_y(center_brightness_w, y);
-    lv_obj_set_y(front_brightness_w, y + sliders_spacing);
-    lv_obj_set_y(headboard_brightness_w, y + 2 * sliders_spacing);
-    lv_obj_set_y(cage_brightness_w, y + 3 * sliders_spacing);
+    lv_obj_set_y(front_brightness_w, y + kSlidersSpacing);
+    lv_obj_set_y(headboard_brightness_w, y + 2 * kSlidersSpacing);
+    lv_obj_set_y(cage_brightness_w, y + 3 * kSlidersSpacing);
+    lv_obj_set_y(off_button_w, y - 60);
+    lv_obj_set_y(on_button_w, y - 60);
 }
 
-static void timer_hide_sliders_cb(lv_timer_t *timer)
-{
-    animate_sliders(false);
-    lv_timer_del(timer);
-    sliders_hide_timer = NULL; // Clear the timer reference
+static void timer_hide_sliders_cb(lv_timer_t *timer) {
+    hide_sliders();
 }
 
-static void background_clicked_cb(lv_event_t *e)
-{
-    show_sliders();
+static void background_clicked_cb(lv_event_t *e) {
+    if (lv_obj_get_style_opa(center_brightness_w, 0) == LV_OPA_TRANSP) {
+        show_sliders();
+    } else {
+        hide_sliders();
+    }
 }

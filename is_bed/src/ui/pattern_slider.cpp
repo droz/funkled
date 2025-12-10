@@ -5,9 +5,9 @@
 #include <Arduino.h>
 
 //
-// Consts
+// Constants
 //
-static const uint32_t slider_size = 45; // Size of the buttons
+static const uint32_t kSliderSize = 45; // Size of the buttons
 
 //
 // Local variables
@@ -62,7 +62,7 @@ lv_obj_t *pattern_slider_create(lv_obj_t *parent, pattern_changed_cb_t callback,
     // Left button
     lv_obj_t *left_btn_w = lv_btn_create(slider_w);
     lv_obj_add_event_cb(left_btn_w, left_btn_event_cb, LV_EVENT_CLICKED, NULL);
-    lv_obj_set_size(left_btn_w, slider_size, slider_size);
+    lv_obj_set_size(left_btn_w, kSliderSize, kSliderSize);
     lv_obj_t *lbl_left = lv_label_create(left_btn_w);
     lv_label_set_text(lbl_left, LV_SYMBOL_LEFT);
     lv_obj_center(lbl_left);
@@ -72,7 +72,7 @@ lv_obj_t *pattern_slider_create(lv_obj_t *parent, pattern_changed_cb_t callback,
     // Center button
     pattern_button_w = lv_btn_create(slider_w);
     lv_obj_set_style_bg_color(pattern_button_w, lv_color_hex(0x505050), 0);
-    lv_obj_set_height(pattern_button_w, slider_size);
+    lv_obj_set_height(pattern_button_w, kSliderSize);
     pattern_label_w = lv_label_create(pattern_button_w);
     lv_label_set_text(pattern_label_w, led_patterns[current_pattern_index].name);
     lv_obj_center(pattern_label_w);
@@ -82,7 +82,7 @@ lv_obj_t *pattern_slider_create(lv_obj_t *parent, pattern_changed_cb_t callback,
     // Right button
     lv_obj_t *right_btn_w = lv_btn_create(slider_w);
     lv_obj_add_event_cb(right_btn_w, right_btn_event_cb, LV_EVENT_CLICKED, NULL);
-    lv_obj_set_size(right_btn_w, slider_size, slider_size);
+    lv_obj_set_size(right_btn_w, kSliderSize, kSliderSize);
     lv_obj_t *lbl_right = lv_label_create(right_btn_w);
     lv_label_set_text(lbl_right, LV_SYMBOL_RIGHT);
     lv_obj_center(lbl_right);
