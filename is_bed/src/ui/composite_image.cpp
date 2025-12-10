@@ -14,7 +14,7 @@ static void composite_image_update(const composite_image_dsc_t *dsc);
 //
 // Global functions
 //
-lv_obj_t *composite_image_create(lv_obj_t *parent, const composite_image_dsc_t *dsc)
+lv_obj_t *composite_image_create(lv_obj_t *parent, lv_event_cb_t callback, const composite_image_dsc_t *dsc)
 {
     // Check that all the image formats match
     if (dsc->background_image_dsc.header.cf != LV_COLOR_FORMAT_RGB888)
@@ -39,6 +39,12 @@ lv_obj_t *composite_image_create(lv_obj_t *parent, const composite_image_dsc_t *
 
     // Create a timer to update the composite image
     lv_timer_create(composite_image_timer_cb, 20, canvas_w);
+
+    // Register the callback if it exists
+    if (callback != NULL) {
+        lv_obj_add_flag(canvas_w, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_add_event_cb(canvas_w, callback, LV_EVENT_CLICKED, NULL);
+    }
 
     return canvas_w;
 }

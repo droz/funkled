@@ -27,6 +27,6 @@ typedef struct
 } composite_image_dsc_t;
 
 // Create a composite image widget
-lv_obj_t *composite_image_create(lv_obj_t *parent, const composite_image_dsc_t *dsc);
+lv_obj_t *composite_image_create(lv_obj_t *parent, lv_event_cb_t callback, const composite_image_dsc_t *dsc);
 
 #endif /*LV_COMPOSITE_IMAGE_H*/
