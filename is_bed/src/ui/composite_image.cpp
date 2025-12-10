@@ -75,9 +75,14 @@ void composite_image_update(const composite_image_dsc_t *dsc)
             total_green += color.green;
             total_blue += color.blue;
         }
-        layer_colors[i].red = total_red * led_zones[i].brightness * 2 / 255 / num_leds;
-        layer_colors[i].green = total_green * led_zones[i].brightness * 2 / 255 / num_leds;
-        layer_colors[i].blue = total_blue * led_zones[i].brightness * 2 / 255 / num_leds;
+        // Don't use the brightness scaling. That will make sure that the display always shows the pattern even if the
+        // zones are currently dimmed.
+        //layer_colors[i].red = total_red * led_zones[i].brightness * 2 / 255 / num_leds;
+        //layer_colors[i].green = total_green * led_zones[i].brightness * 2 / 255 / num_leds;
+        //layer_colors[i].blue = total_blue * led_zones[i].brightness * 2 / 255 / num_leds;
+        layer_colors[i].red = total_red * 2 / num_leds;
+        layer_colors[i].green = total_green * 2 / num_leds;
+        layer_colors[i].blue = total_blue * 2 / num_leds;
     }
 
     // Then, for each pixel in the background image, composite the layers on top of it
