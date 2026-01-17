@@ -1,0 +1,6 @@
+[submodule "tft_test/lib/Arduino-FT6336U"]
+	path = tft_test/lib/Arduino-FT6336U
+	url = git@github.com:aselectroworks/Arduino-FT6336U.git
+[submodule "led_tester/lib/Arduino-FT6336U"]
+	path = led_tester/lib/Arduino-FT6336U
+	url = git@github.com:droz/Arduino-FT6336U.git

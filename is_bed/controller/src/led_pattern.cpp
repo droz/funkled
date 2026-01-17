@@ -162,11 +162,11 @@ led_pattern_t led_patterns[] = {
         .desc = "Space Warp",
         .update = space_warp_pattern,
     },
-        {
-        .name = "Flash",
-        .desc = "Flash",
-        .update = flash_pattern,
-    },
+    //{
+    //    .name = "Flash",
+    //    .desc = "Flash",
+    //    .update = flash_pattern,
+    //},
     // {
     //     .name = "Rotate",
     //     .desc = "Rotate through a palette",

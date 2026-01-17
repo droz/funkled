@@ -12,7 +12,7 @@
 //
 // Constants
 //
-static const uint32_t kSlidersHideDelayMs = 3000; // Time after which the sliders hide
+static const uint32_t kSlidersHideDelayMs = 5000; // Time after which the sliders hide
 static const uint32_t kSlidersAnimTimeMs = 500;   // Time for the slider show/hide animation
 static const uint32_t kSlidersSpacing = 45;        // Vertical spacing between sliders
 

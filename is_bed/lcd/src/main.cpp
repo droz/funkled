@@ -315,6 +315,9 @@ static void led_refresh_cb(lv_timer_t *timer)
         }
     }
     leds.show();
+    // Send a dot character on the serial port
+    Serial.print(".");
+    Serial.flush();
 }
 
 // Update MTP
