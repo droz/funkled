@@ -1,17 +1,10 @@
-#include "led_array.h"
-#include "cached_patterns/cached_pattern.h"
 #include <Arduino.h>
 #include <lvgl.h>
 #include "ui/is_bed_ui.h"
 #include <TFT_eSPI.h>
 #include <FT6336U.h>
-#include <OctoWS2811.h>
 #include <Wire.h>
 #include <Adafruit_seesaw.h>
-#include <SD.h>
-#include <MTP_Teensy.h>
-
-const int SD_ChipSelect = BUILTIN_SDCARD;
 
 // Touchscreen
 #define TOUCH_RST_PIN 37
@@ -24,18 +17,8 @@ FT6336U ft6336u(TOUCH_SDA_PIN, TOUCH_SCL_PIN, TOUCH_RST_PIN, TOUCH_INT_PIN);
 #define BACKLIGHT_PIN 29
 
 // Status LED
-#define STATUS_RED 33
-#define STATUS_GREEN 32
-
-// LEDs
-#define LED_REFRESH_RATE_HZ 20
-const uint8_t pin_list[] = {28, 24, 15, 7, 5, 3, 2, 1, 25, 14, 8, 6, 4, 22, 23, 0};
-const uint32_t bytes_per_led = 3;
-DMAMEM uint8_t display_memory[max_leds * bytes_per_led];
-uint8_t drawing_memory[max_leds * bytes_per_led];
-// OctoWS2811 can do its own RGB reordering, but it may be different for each strip, so we do it ourselves.
-const uint8_t config = WS2811_RGB | WS2811_800kHz;
-OctoWS2811 leds(max_leds_per_channel, display_memory, drawing_memory, config, num_led_channels, pin_list);
+#define HEARTBEAT_INTERVAL_MS 1000
+uint8_t led_beat_counter = 0;
 
 // Quad encoder extension board
 #define ENCODERS_ADDR 0x49
@@ -54,27 +37,14 @@ static lv_color_t draw_buf[DRAW_BUF_SIZE];
 
 // Function prototypes
 static uint32_t lv_tick(void);
-static void lv_print(lv_log_level_t level, const char *buf);
 static void lv_touchpad_read(lv_indev_t *indev, lv_indev_data_t *data);
 static void lv_encoder_read(lv_indev_t *indev, lv_indev_data_t *data);
-static void led_refresh_cb(lv_timer_t *timer);
-static void heartbeat_cb(lv_timer_t *timer);
-static void mtp_cb(lv_timer_t *timer);
-
-
-#define HEARTBEAT_PERIOD_MS 1700
 
 //
 // The main setup function
 //
 void setup()
 {
-    // Status LED
-    pinMode(STATUS_RED, OUTPUT);
-    pinMode(STATUS_GREEN, OUTPUT);
-    digitalWrite(STATUS_RED, HIGH);
-    digitalWrite(STATUS_GREEN, HIGH);
-
     // Serial port
     Serial.begin(115200);
     String lvgl_ver = "LVGL ";
@@ -115,9 +85,6 @@ void setup()
     // Set a tick source so that LVGL will know how much time elapsed.
     lv_tick_set_cb(lv_tick);
 
-    // Set a print function for logging
-    lv_log_register_print_cb(lv_print);
-
     // Register TFT_espi as the display driver
     lv_display_t *disp;
     disp = lv_tft_espi_create(TFT_HOR_RES, TFT_VER_RES, draw_buf, sizeof(draw_buf));
@@ -139,41 +106,11 @@ void setup()
         lv_indev_set_user_data(encoders[i], (void *)i); // Store the encoder index in the user data
     }
 
-    // Initialize the led array descriptors
-    led_array_init();
-
     // Build the UI
     is_bed_ui();
 
-    // Start the LEDs
-    leds.begin();
-
-    // Register the LED refresh function. We are going to use an LVGL timer to call this function.
-    lv_timer_create(led_refresh_cb, 1000 / LED_REFRESH_RATE_HZ, NULL);
-
     // We are done
     Serial.println("Setup done");
-    digitalWrite(STATUS_GREEN, HIGH);
-    digitalWrite(STATUS_RED, LOW);
-
-    // Add the SD Card
-    if (SD.begin(SD_ChipSelect))
-    {
-        Serial.println("SD Card initialized");
-        CACHED_PATTERN_LOAD(abstract_gradient);
-        CACHED_PATTERN_LOAD(blue_light_rays);
-        CACHED_PATTERN_LOAD(color_roll);
-        CACHED_PATTERN_LOAD(fire);
-        CACHED_PATTERN_LOAD(flash);
-        CACHED_PATTERN_LOAD(matrix);
-        CACHED_PATTERN_LOAD(rainbow);
-        CACHED_PATTERN_LOAD(space_warp);
-
-        // Start MTP
-        MTP.begin();
-        MTP.addFilesystem(SD, "SD_Card");
-        lv_timer_create(mtp_cb, 1000 / LED_REFRESH_RATE_HZ, NULL);
-    }
     
 }
 
@@ -187,35 +124,6 @@ void loop()
 static uint32_t lv_tick(void)
 {
     return millis();
-}
-
-// Provides LVGL with access to the serial port
-static void lv_print(lv_log_level_t level, const char *buf)
-{
-    Serial.print("LVGL ");
-    switch (level)
-    {
-    case LV_LOG_LEVEL_TRACE:
-        Serial.print("TRACE: ");
-        break;
-    case LV_LOG_LEVEL_INFO:
-        Serial.print("INFO: ");
-        break;
-    case LV_LOG_LEVEL_WARN:
-        Serial.print("WARN: ");
-        break;
-    case LV_LOG_LEVEL_ERROR:
-        Serial.print("ERROR: ");
-        break;
-    case LV_LOG_LEVEL_USER:
-        Serial.print("USER: ");
-        break;
-    default:
-        Serial.print("UNKNOWN: ");
-        break;
-    }
-    Serial.println(buf);
-    Serial.flush();
 }
 
 // Provides LVGL with access to the touchpad
@@ -255,72 +163,4 @@ static void lv_encoder_read(lv_indev_t *indev, lv_indev_data_t *data)
     data->state = encoders.digitalRead(SS_ENC_SWITCH_PIN[encoder_index]) ? LV_INDEV_STATE_REL : LV_INDEV_STATE_PR;
     // Read the encoder delta. Apply some gain to make the encoder more sensitive.
     data->enc_diff = -encoders.getEncoderDelta(encoder_index);
-}
-
-// Refresh the LEDs
-static void led_refresh_cb(lv_timer_t *timer)
-{
-    uint32_t now = millis();
-    for (uint32_t i = 0; i < num_strings; i++)
-    {
-        led_string_t *led_string = &led_strings[i];
-        for (uint32_t j = 0; j < led_string->num_segments; j++)
-        {
-            led_segment_t *segment = &led_string->segments[j];
-            led_zone_t *zone = &led_zones[segment->zone];
-            led_patterns[zone->led_pattern_index]
-                .update(
-                    now,
-                    zone->update_period_ms,
-                    composed_palette(&led_palettes[zone->palette_index], zone->single_color),
-                    zone->single_color,
-                    i,
-                    j,
-                    segment->num_leds,
-                    leds_crgb + segment->string_offset);
-            for (uint32_t k = segment->string_offset; k < segment->string_offset + segment->num_leds; k++)
-            {
-                uint32_t color_u32 = 0x000000;
-                leds_crgb[k].nscale8(zone->brightness);
-                // The green LEDs are stronger than the other colors. Dim them a little bit to help with color balance.
-                leds_crgb[k].g = scale8(leds_crgb[k].g, 200);
-                switch (zone->color_ordering)
-                {
-                case WS2811_RGB:
-                    color_u32 = leds_crgb[k].r << 16 | leds_crgb[k].g << 8 | leds_crgb[k].b;
-                    break;
-                case WS2811_RBG:
-                    color_u32 = leds_crgb[k].r << 16 | leds_crgb[k].b << 8 | leds_crgb[k].g;
-                    break;
-                case WS2811_GRB:
-                    color_u32 = leds_crgb[k].g << 16 | leds_crgb[k].r << 8 | leds_crgb[k].b;
-                    break;
-                case WS2811_GBR:
-                    color_u32 = leds_crgb[k].g << 16 | leds_crgb[k].b << 8 | leds_crgb[k].r;
-                    break;
-                case WS2811_BRG:
-                    color_u32 = leds_crgb[k].b << 16 | leds_crgb[k].r << 8 | leds_crgb[k].g;
-                    break;
-                case WS2811_BGR:
-                    color_u32 = leds_crgb[k].b << 16 | leds_crgb[k].g << 8 | leds_crgb[k].r;
-                    break;
-                default:
-                    color_u32 = 0x000000;
-                    break;
-                }
- 
-                
-                leds.setPixel(led_string->channel * max_leds_per_channel + k, color_u32);
-            }
-        }
-    }
-    leds.show();
-    // Send a dot character on the serial port
-    Serial.print(".");
-    Serial.flush();
-}
-
-// Update MTP
-static void mtp_cb(lv_timer_t *timer) {
-    MTP.loop();
 }

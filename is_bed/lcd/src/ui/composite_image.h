@@ -2,15 +2,14 @@
 #define LV_COMPOSITE_IMAGE_H
 
 #include "../lvgl.h"
-#include "led_array.h"
 
 // This describes a layer for a composite image
 typedef struct
 {
     // The image descriptor for the layer. Should be an 8 bit single channel image.
     lv_image_dsc_t image_dsc;
-    // The led string associated with this layer.
-    const led_string_t *led_string;
+    // The led color associated with this layer.
+    lv_color_t led_color;
 } composite_image_layer_t;
 
 // This struct stores the data for a composite image

@@ -48,42 +48,11 @@ lv_obj_t *composite_image_create(lv_obj_t *parent, lv_event_cb_t callback, const
 // Update the canvas with the composite image
 void composite_image_update(const composite_image_dsc_t *dsc)
 {
+    return;
     // First, for each layer, compute the average color of the pixels
     // TODO: For now, as a hack, we just recompute the average color of the first half of the LEDs in each string.
     //       we should instead use the color of the LEDs as actually rendered by OctoWS2811.
     lv_color_t layer_colors[dsc->layer_count];
-    const uint32_t num_leds = 16;
-    for (uint32_t i = 0; i < dsc->layer_count; i++)
-    {
-        CRGB leds[num_leds];
-        led_patterns[led_zones[i].ui_pattern_index].update(
-            millis() * (100 + i) / 100, // To create a phase shift between the patterns
-            led_zones[i].update_period_ms,
-            composed_palette(&led_palettes[led_zones[i].palette_index], led_zones[i].single_color),
-            led_zones[i].single_color,
-            0,
-            0,
-            num_leds,
-            leds);
-        uint32_t total_red = 0;
-        uint32_t total_green = 0;
-        uint32_t total_blue = 0;
-        for (uint32_t j = 0; j < num_leds / 2; j++)
-        {
-            CRGB color = leds[j];
-            total_red += color.red;
-            total_green += color.green;
-            total_blue += color.blue;
-        }
-        // Don't use the brightness scaling. That will make sure that the display always shows the pattern even if the
-        // zones are currently dimmed.
-        //layer_colors[i].red = total_red * led_zones[i].brightness * 2 / 255 / num_leds;
-        //layer_colors[i].green = total_green * led_zones[i].brightness * 2 / 255 / num_leds;
-        //layer_colors[i].blue = total_blue * led_zones[i].brightness * 2 / 255 / num_leds;
-        layer_colors[i].red = total_red * 2 / num_leds;
-        layer_colors[i].green = total_green * 2 / num_leds;
-        layer_colors[i].blue = total_blue * 2 / num_leds;
-    }
 
     // Then, for each pixel in the background image, composite the layers on top of it
     for (uint32_t y = 0; y < dsc->background_image_dsc.header.h; y++)

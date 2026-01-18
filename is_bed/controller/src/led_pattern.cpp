@@ -62,7 +62,6 @@ void blink_pattern(uint32_t time_ms, uint32_t period_ms, const CRGBPalette16 *pa
 void cached_pattern(cached_pattern_t* pattern, uint32_t time_ms, uint32_t string_index, uint32_t segment_index, uint32_t num_leds, CRGB *leds)
 {
     led_string_t *led_string = &led_strings[string_index];
-    led_segment_t *segment = &led_string->segments[segment_index];
     const uint32_t period_ms = pattern->header.animation_period_s * 1000;
     const uint32_t step = (time_ms * pattern->header.animation_steps / period_ms) % fire.header.animation_steps;
 

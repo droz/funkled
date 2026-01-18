@@ -5,6 +5,7 @@
 #include <Wire.h>
 #include <SD.h>
 #include <MTP_Teensy.h>
+#include <USBHost_t36.h>
 
 const int SD_ChipSelect = BUILTIN_SDCARD;
 
@@ -24,6 +25,14 @@ uint8_t drawing_memory[max_leds * bytes_per_led];
 const uint8_t config = WS2811_RGB | WS2811_800kHz;
 OctoWS2811 leds(max_leds_per_channel, display_memory, drawing_memory, config, num_led_channels, pin_list);
 
+// USB host. To talk to the screen controller
+USBHost usb_host;
+// USB serial port over USB host
+USBSerial_BigBuffer usb_host_serial(usb_host);  // BigBuffer helps avoid drops if you burst data
+
+
+
+
 // Function prototypes
 static void led_refresh();
 
@@ -40,8 +49,10 @@ void setup()
     // Status LED
     pinMode(STATUS_RED, OUTPUT);
     pinMode(STATUS_GREEN, OUTPUT);
+    pinMode(STATUS_TEENSY_BUILTIN, OUTPUT);
     digitalWrite(STATUS_RED, HIGH);
     digitalWrite(STATUS_GREEN, HIGH);
+    digitalWrite(STATUS_TEENSY_BUILTIN, HIGH);
 
     // Serial port
     Serial.begin(115200);
@@ -51,11 +62,6 @@ void setup()
 
     // Start the LEDs
     leds.begin();
-
-    // We are done
-    Serial.println("Setup done");
-    digitalWrite(STATUS_GREEN, HIGH);
-    digitalWrite(STATUS_RED, LOW);
 
     // Add the SD Card
     if (SD.begin(SD_ChipSelect))
@@ -74,6 +80,15 @@ void setup()
         MTP.begin();
         MTP.addFilesystem(SD, "SD_Card");
     }
+
+    // USB host
+    usb_host.begin();
+
+    // We are done
+    Serial.println("Setup done");
+    digitalWrite(STATUS_GREEN, HIGH);
+    digitalWrite(STATUS_RED, LOW);
+
     
 }
 
@@ -84,8 +99,6 @@ void loop() {
         last_tick = now;
         // Refresh the LEDs
         led_refresh();
-        // Update MTP
-        MTP.loop();
         // Heartbeat on the serial port
         Serial.print(".");
         // Heartbeat LED
@@ -100,6 +113,23 @@ void loop() {
             led_beat_counter = 0;
         }
     }
+
+    // Update MTP
+    MTP.loop();
+
+    // USB host
+    usb_host.Task();
+
+    if (usb_host_serial) {
+        // Connected.
+        digitalWrite(STATUS_RED, HIGH);
+        while (usb_host_serial.available()) {
+            int c = usb_host_serial.read();
+            // Echo back to the sender
+            Serial.write(c + 1);
+        }
+    }
+
 }
 
 // Refresh the LEDs
