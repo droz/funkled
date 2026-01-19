@@ -1,19 +1,15 @@
 #include "is_bed_ui.h"
 #include "composite_image.h"
-#include "slider.h"
 #include "brightness_slider.h"
 #include "pattern_slider.h"
 #include <Arduino.h>
 #include <FastLED.h>
+#include <zones.h>
 
 //
 // Constants
 //
-#define ZONE_CAGE 0
-#define ZONE_CENTER 1
-#define ZONE_FRONT 2
-#define ZONE_HEADBOARD 3
-static const uint32_t kSlidersHideDelayMs = 5000; // Time after which the sliders hide
+static const uint32_t kSlidersHideDelayMs = 3000; // Time after which the sliders hide
 static const uint32_t kSlidersAnimTimeMs = 500;   // Time for the slider show/hide animation
 static const uint32_t kSlidersSpacing = 45;        // Vertical spacing between sliders
 
@@ -63,28 +59,6 @@ static lv_timer_t *sliders_hide_timer = NULL;
 // The encoder groups
 static lv_group_t *encoder_groups[4];
 
-// The composite image of the bed
-LV_IMAGE_DECLARE(background);
-LV_IMAGE_DECLARE(center);
-LV_IMAGE_DECLARE(front);
-LV_IMAGE_DECLARE(headboard);
-LV_IMAGE_DECLARE(cage);
-static composite_image_layer_t layers[] = {
-    {.image_dsc = cage,
-     .led_color = lv_color_make(0, 0, 255)},
-    {.image_dsc = center,
-     .led_color = lv_color_make(0, 255, 0)},
-    {.image_dsc = front,
-     .led_color = lv_color_make(255, 0, 0)},
-    {.image_dsc = headboard,
-     .led_color = lv_color_make(255, 255, 0)}};
-static DMAMEM uint8_t composite_buffer[TFT_HOR_RES * TFT_VER_RES * 3];
-static composite_image_dsc_t composite_dsc = {
-    .buffer = composite_buffer,
-    .background_image_dsc = background,
-    .layers = layers,
-    .layer_count = sizeof(layers) / sizeof(layers[0])};
-
 //
 // Global functions
 //
@@ -115,7 +89,7 @@ void is_bed_ui(void) {
     lv_obj_clear_flag(screen_w, LV_OBJ_FLAG_SCROLLABLE);
 
     // Add the various widgets
-    background_image_w = composite_image_create(screen_w, background_clicked_cb, &composite_dsc);
+    background_image_w = composite_image_create(screen_w, background_clicked_cb);
     pattern_slider_w = pattern_slider_create(screen_w, pattern_changed_cb, encoder_groups[0]);
     center_brightness_w = brightness_slider_create(screen_w, brightness_changed_cb, encoder_groups[0], ZONE_CENTER, "Bed");
     front_brightness_w = brightness_slider_create(screen_w, brightness_changed_cb, encoder_groups[1], ZONE_FRONT, "Bench");
@@ -225,7 +199,7 @@ static void show_sliders() {
         lv_timer_set_repeat_count(sliders_hide_timer, 1);                           // Only run once
     }
     // If the sliders are already visible, no need to animate it again
-    if (lv_obj_get_style_opa(center_brightness_w, 0) == LV_OPA_TRANSP) {
+    if (lv_obj_get_style_opa(center_brightness_w, LV_PART_MAIN) == LV_OPA_TRANSP) {
         animate_sliders(true);
     }
 }
@@ -237,21 +211,19 @@ static void hide_sliders() {
         sliders_hide_timer = NULL;
     }
     // If the sliders are already hidden, no need to animate it again
-    if (lv_obj_get_style_opa(center_brightness_w, 0) == LV_OPA_TRANSP) {
+    if (lv_obj_get_style_opa(center_brightness_w, LV_PART_MAIN) == LV_OPA_TRANSP) {
         return;
     }
     // Animate the sliders to hide
-    if (lv_obj_get_style_opa(center_brightness_w, 0) != LV_OPA_TRANSP) {
+    if (lv_obj_get_style_opa(center_brightness_w, LV_PART_MAIN) != LV_OPA_TRANSP) {
         animate_sliders(false);
     }
 }
 
 static void validate_pattern()
 {
-    // We copy the UI pattern index to the actual pattern index
-//    for (uint32_t i = 0; i < num_zones; i++) {
-//        led_zones[i].led_pattern_index = led_zones[i].ui_pattern_index;
-//    }
+    // Copy the displayed pattern index to the selected pattern index
+    selected_pattern_index = displayed_pattern_index;
     // Hide the validate buttons
     lv_obj_add_flag(ok_btn_w, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(cancel_btn_w, LV_OBJ_FLAG_HIDDEN);
@@ -259,13 +231,10 @@ static void validate_pattern()
 
 static void cancel_pattern()
 {
-//    // We revert the UI pattern index to the actual pattern index
-//    for (uint32_t i = 0; i < num_zones; i++) {
-//        led_zones[i].ui_pattern_index = led_zones[i].led_pattern_index;
-//    }
-//    // Update the pattern slider to reflect the reverted pattern
-//    uint32_t pattern_index = led_zones[0].led_pattern_index;
-//    pattern_slider_set_pattern(pattern_slider_w, pattern_index);
+    // We revert the displayed pattern index to the selected pattern index
+    displayed_pattern_index = selected_pattern_index;
+    // Update the pattern slider to reflect the reverted pattern
+    pattern_slider_set_pattern(selected_pattern_index);
     // Hide the validate buttons
     lv_obj_add_flag(ok_btn_w, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(cancel_btn_w, LV_OBJ_FLAG_HIDDEN);
@@ -295,23 +264,15 @@ static void brightness_changed_cb(lv_event_t *e)
         lv_slider_set_value(slider_w, brightness, LV_ANIM_OFF); // Update the slider value
     }
     // Update the corresponding LED string brightness
-//    led_zones[zone].brightness = brightness;
+    zone_brightness[zone] = brightness;
 }
 
 
 static void pattern_changed_cb(uint32_t pattern_index)
 {
     hide_sliders();
-    bool changed = false;
-//    for (uint32_t i = 0; i < num_zones; i++)
-//    {
-//          led_zones[i].ui_pattern_index = pattern_index;
-//          if (led_zones[i].led_pattern_index != pattern_index) {
-//              changed = true;
-//          }
-//    }
     // Show or hide the validate buttons depending on whether there was a change
-    if (changed) {
+    if (selected_pattern_index != pattern_index) {
         lv_obj_clear_flag(ok_btn_w, LV_OBJ_FLAG_HIDDEN);
         lv_obj_clear_flag(cancel_btn_w, LV_OBJ_FLAG_HIDDEN);
     } else {
@@ -331,10 +292,9 @@ static void cancel_btn_event_cb(lv_event_t *e) {
 static void off_btn_event_cb(lv_event_t *e) {
     show_sliders();
     // When the user clicks the off button, we set all brightnesses to zero
-//    for (uint32_t i = 0; i < num_zones; i++)
-//    {
-//          led_zones[i].brightness = 0;
-//    }
+    for (uint32_t i = 0; i < NUM_ZONES; i++) {
+        zone_brightness[i] = 0;
+    }
     // Update all brightness sliders to reflect the change
     lv_slider_set_value(center_brightness_w, 0, LV_ANIM_OFF);
     lv_slider_set_value(front_brightness_w, 0, LV_ANIM_OFF);
@@ -345,10 +305,9 @@ static void off_btn_event_cb(lv_event_t *e) {
 static void on_btn_event_cb(lv_event_t *e) {
     show_sliders();
     // When the user clicks the on button, we set all brightnesses to max
-//    for (uint32_t i = 0; i < num_zones; i++)
-//    {
-//          led_zones[i].brightness = 255;
-//    }
+    for (uint32_t i = 0; i < NUM_ZONES; i++) {
+        zone_brightness[i] = 255;
+    }
     // Update all brightness sliders to reflect the change
     lv_slider_set_value(center_brightness_w, 255, LV_ANIM_OFF);
     lv_slider_set_value(front_brightness_w, 255, LV_ANIM_OFF);
@@ -378,7 +337,7 @@ static void timer_hide_sliders_cb(lv_timer_t *timer) {
 }
 
 static void background_clicked_cb(lv_event_t *e) {
-    if (lv_obj_get_style_opa(center_brightness_w, 0) == LV_OPA_TRANSP) {
+    if (lv_obj_get_style_opa(center_brightness_w, LV_PART_MAIN) == LV_OPA_TRANSP) {
         show_sliders();
     } else {
         hide_sliders();

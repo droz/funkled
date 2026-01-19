@@ -1,4 +1,5 @@
 #include "led_array.h"
+#include <zones.h>
 #include <EEPROM.h>
 
 uint32_t current_channel = 0;

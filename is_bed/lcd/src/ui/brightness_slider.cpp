@@ -3,6 +3,11 @@
 #include "slider.h"
 
 //
+// Global variables
+//
+uint8_t zone_brightness[4] = {255, 255, 255, 255};
+
+//
 // Constants
 //
 static const uint32_t kSliderSize = 50;

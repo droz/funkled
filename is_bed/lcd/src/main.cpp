@@ -1,10 +1,21 @@
 #include <Arduino.h>
 #include <lvgl.h>
 #include "ui/is_bed_ui.h"
+#include "ui/pattern_slider.h"
+#include "ui/brightness_slider.h"
+#include "ui/composite_image.h"
 #include <TFT_eSPI.h>
 #include <FT6336U.h>
 #include <Wire.h>
 #include <Adafruit_seesaw.h>
+#include <SerialTransfer.h>
+#include <is_bed_protocol.h>
+
+// Communication with the main controller
+SerialTransfer controller_transfer;
+is_bed_controller_to_lcd_t from_controller_msg;
+is_bed_lcd_to_controller_t to_controller_msg;
+#define COMMS_SEND_INTERVAL_MS 100
 
 // Touchscreen
 #define TOUCH_RST_PIN 37
@@ -39,6 +50,7 @@ static lv_color_t draw_buf[DRAW_BUF_SIZE];
 static uint32_t lv_tick(void);
 static void lv_touchpad_read(lv_indev_t *indev, lv_indev_data_t *data);
 static void lv_encoder_read(lv_indev_t *indev, lv_indev_data_t *data);
+static void comms_send_cb(lv_timer_t *timer);
 
 //
 // The main setup function
@@ -47,22 +59,13 @@ void setup()
 {
     // Serial port
     Serial.begin(115200);
-    String lvgl_ver = "LVGL ";
-    lvgl_ver += String('V') + lv_version_major() + "." + lv_version_minor() + "." + lv_version_patch();
-    Serial.println(lvgl_ver);
+    controller_transfer.begin(Serial, false);
 
     // Touchscreen
     ft6336u.begin();
 
     // Quad encoders
-    if (!encoders.begin(ENCODERS_ADDR))
-    {
-        Serial.println("Failed to initialize the quad encoders");
-    }
-    else
-    {
-        Serial.println("Quad encoders initialized");
-    }
+    encoders.begin(ENCODERS_ADDR);
     for (int i = 0; i < NUM_ENCODERS; i++)
     {
         // Set the switch pins to INPUT_PULLUP
@@ -71,9 +74,6 @@ void setup()
 
     // Set the interrupt to polling mode (low when there is a touch, high otherwise)
     ft6336u.write_g_mode(pollingMode);
-    String touch_ver = "FT6336U ";
-    touch_ver += String('V') + ft6336u.read_firmware_id() + String('M') + ft6336u.read_device_mode();
-    Serial.println(touch_ver);
 
     // Backlight
     pinMode(BACKLIGHT_PIN, OUTPUT);
@@ -109,15 +109,49 @@ void setup()
     // Build the UI
     is_bed_ui();
 
-    // We are done
-    Serial.println("Setup done");
-    
+    // Create a timer for the communication send function.
+    lv_timer_create(comms_send_cb, COMMS_SEND_INTERVAL_MS, NULL);
 }
 
 void loop()
 {
     // Main LVGL loop
     lv_timer_handler();
+
+    // Listen for messages from the controller
+    while (controller_transfer.available()) {
+        controller_transfer.rxObj(from_controller_msg);
+        // Add the pattern name to the pattern slider
+        if (from_controller_msg.pattern_index < MAX_LED_PATTERNS) {
+            uint8_t index = from_controller_msg.pattern_index;
+            pattern_names[index] = String(from_controller_msg.pattern_name);
+            if (index >= num_patterns) {
+                num_patterns = index + 1;
+                pattern_slider_set_pattern(0);
+            }
+        }
+        // Update the colors on the composite image
+        for (uint32_t i = 0; i < NUM_ZONES; i++) {
+            composite_layers[i].led_color =
+                lv_color_make(from_controller_msg.zone_color[i].r,
+                              from_controller_msg.zone_color[i].g,
+                              from_controller_msg.zone_color[i].b);
+        }
+    }
+}
+
+// Communication send timer callback
+static void comms_send_cb(lv_timer_t *timer) {
+    // Fill the to_controller_msg structure
+    for (uint32_t i = 0; i < NUM_ZONES; i++) {
+        to_controller_msg.zone_brightness[i] = zone_brightness[i];
+    }
+    to_controller_msg.selected_pattern_index = selected_pattern_index;
+    to_controller_msg.displayed_pattern_index = displayed_pattern_index;
+
+    // Send the message
+    controller_transfer.txObj(to_controller_msg);
+    controller_transfer.sendData(sizeof(to_controller_msg));
 }
 
 // Provides LVGL with access to the timer

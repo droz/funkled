@@ -1,4 +1,5 @@
 #include "led_array.h"
+#include "led_pattern.h"
 #include "cached_patterns/cached_pattern.h"
 #include <Arduino.h>
 #include <OctoWS2811.h>
@@ -6,6 +7,8 @@
 #include <SD.h>
 #include <MTP_Teensy.h>
 #include <USBHost_t36.h>
+#include <SerialTransfer.h>
+#include <is_bed_protocol.h>
 
 const int SD_ChipSelect = BUILTIN_SDCARD;
 
@@ -29,17 +32,20 @@ OctoWS2811 leds(max_leds_per_channel, display_memory, drawing_memory, config, nu
 USBHost usb_host;
 // USB serial port over USB host
 USBSerial_BigBuffer usb_host_serial(usb_host);  // BigBuffer helps avoid drops if you burst data
-
-
-
+SerialTransfer lcd_transfer;
+// Data transfer structs
+is_bed_controller_to_lcd_t to_lcd_msg;
+is_bed_lcd_to_controller_t from_lcd_msg;
 
 // Function prototypes
 static void led_refresh();
+static void compute_display_colors(color_rgb_t zone_color[]);
 
 // Last time the LEDs were refreshed
 unsigned long last_tick = 0;
 
-#define HEARTBEAT_PERIOD_MS 1700
+// Last pattern that we did output to the LCD
+uint8_t to_lcd_pattern_index = 0;
 
 //
 // The main setup function
@@ -83,13 +89,13 @@ void setup()
 
     // USB host
     usb_host.begin();
+    lcd_transfer.begin(usb_host_serial);
 
-    // We are done
+    // We are done. Don't change the LEDs yet, we will do that when 
+    // we detect connection to the LCD.
     Serial.println("Setup done");
-    digitalWrite(STATUS_GREEN, HIGH);
-    digitalWrite(STATUS_RED, LOW);
 
-    
+
 }
 
 void loop() {
@@ -99,8 +105,20 @@ void loop() {
         last_tick = now;
         // Refresh the LEDs
         led_refresh();
-        // Heartbeat on the serial port
-        Serial.print(".");
+        // Send data to the LCD
+        if (usb_host_serial) {
+            // Connected.
+            digitalWrite(STATUS_RED, LOW);
+            // Prepare data
+            to_lcd_msg.pattern_index = to_lcd_pattern_index;
+            strcpy(to_lcd_msg.pattern_name, led_patterns[to_lcd_pattern_index].name);
+            to_lcd_pattern_index = (to_lcd_pattern_index + 1) % num_led_patterns();
+            compute_display_colors(to_lcd_msg.zone_color);
+            // Send data
+            uint16_t send_size = lcd_transfer.txObj(to_lcd_msg, 0, sizeof(to_lcd_msg));
+            lcd_transfer.sendData(send_size);
+        }
+
         // Heartbeat LED
         led_beat_counter++;
         if (led_beat_counter == LED_REFRESH_RATE_HZ) {
@@ -114,22 +132,32 @@ void loop() {
         }
     }
 
+    // Listen for messages from the LCD
+    if (lcd_transfer.available()) {
+        lcd_transfer.rxObj(from_lcd_msg);
+        // Change the selected pattern
+        for (uint32_t i = 0; i < NUM_ZONES; i++) {
+            if (from_lcd_msg.selected_pattern_index < num_led_patterns()) {
+                led_zones[i].led_pattern_index = from_lcd_msg.selected_pattern_index;
+            }
+        }
+        // Change the displayed pattern
+        for (uint32_t i = 0; i < NUM_ZONES; i++) {
+            if (from_lcd_msg.displayed_pattern_index < num_led_patterns()) {
+                led_zones[i].ui_pattern_index = from_lcd_msg.displayed_pattern_index;
+            }
+        }
+        // Update the brightness
+        for (uint32_t i = 0; i < NUM_ZONES; i++) {
+            led_zones[i].brightness = from_lcd_msg.zone_brightness[i];
+        }
+    }
+
     // Update MTP
     MTP.loop();
 
     // USB host
     usb_host.Task();
-
-    if (usb_host_serial) {
-        // Connected.
-        digitalWrite(STATUS_RED, HIGH);
-        while (usb_host_serial.available()) {
-            int c = usb_host_serial.read();
-            // Echo back to the sender
-            Serial.write(c + 1);
-        }
-    }
-
 }
 
 // Refresh the LEDs
@@ -193,4 +221,39 @@ static void led_refresh()
     // Send a dot character on the serial port
     Serial.print(".");
     Serial.flush();
+}
+
+// Compute the colors to display for each zone on the LCD for the current selected pattern
+static void compute_display_colors(color_rgb_t zone_color[]) {
+    // Compute the average color of the LEDs in each string.
+    const uint32_t num_leds = 16;
+    for (uint32_t i = 0; i < NUM_ZONES; i++)
+    {
+        CRGB leds[num_leds];
+        led_patterns[led_zones[i].ui_pattern_index].update(
+            millis() * (100 + i) / 100, // To create a phase shift between the patterns
+            led_zones[i].update_period_ms,
+            composed_palette(&led_palettes[led_zones[i].palette_index], led_zones[i].single_color),
+            led_zones[i].single_color,
+            0,
+            0,
+            num_leds,
+            leds);
+        uint32_t total_red = 0;
+        uint32_t total_green = 0;
+        uint32_t total_blue = 0;
+        for (uint32_t j = 0; j < num_leds; j++)
+        {
+            CRGB color = leds[j];
+            total_red += color.red;
+            total_green += color.green;
+            total_blue += color.blue;
+        }
+        // Don't use the brightness scaling. That will make sure that the display always shows the pattern even if the
+        // zones are currently dimmed.
+        zone_color[i].r = total_red * 2 / num_leds;
+        zone_color[i].g = total_green * 2 / num_leds;
+        zone_color[i].b = total_blue * 2 / num_leds;
+    }
+
 }

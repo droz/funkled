@@ -25,7 +25,10 @@ typedef struct
     uint32_t layer_count;
 } composite_image_dsc_t;
 
+// The layer for each zone
+extern composite_image_layer_t composite_layers[];
+
 // Create a composite image widget
-lv_obj_t *composite_image_create(lv_obj_t *parent, lv_event_cb_t callback, const composite_image_dsc_t *dsc);
+lv_obj_t *composite_image_create(lv_obj_t *parent, lv_event_cb_t callback);
 
 #endif /*LV_COMPOSITE_IMAGE_H*/
