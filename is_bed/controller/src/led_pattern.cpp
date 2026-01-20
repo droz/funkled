@@ -94,8 +94,8 @@ void add_cached_patterns() {
             // Replace the underscores with spaces and adjust the case
             name.replace('_', ' ');
             name.toLowerCase();
-            // Find all the spaces and capitalize the next letter
-            for (int j = 0; j < name.length(); j++) {
+            // Capitalize the first letter of each word
+            for (unsigned int j = 0; j < name.length(); j++) {
                 if (j == 0 || name.charAt(j - 1) == ' ') {
                     name.setCharAt(j, toupper(name.charAt(j)));
                 }
@@ -109,3 +109,12 @@ void add_cached_patterns() {
     }
 }
 
+// Add a static pattern to the patterns array
+void add_static_pattern() {
+    if (num_led_patterns < MAX_LED_PATTERNS) {
+        led_patterns[num_led_patterns].name = "Static";
+        led_patterns[num_led_patterns].cached_pattern = nullptr;
+        led_patterns[num_led_patterns].update = static_pattern;
+        num_led_patterns++;
+    }
+}

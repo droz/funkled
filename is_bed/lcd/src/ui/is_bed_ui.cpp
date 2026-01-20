@@ -2,6 +2,7 @@
 #include "composite_image.h"
 #include "brightness_slider.h"
 #include "pattern_slider.h"
+#include "color_selector.h"
 #include <Arduino.h>
 #include <FastLED.h>
 #include <zones.h>
@@ -29,6 +30,7 @@ static lv_obj_t *off_button_create(lv_obj_t *parent);
 static lv_obj_t *on_button_create(lv_obj_t *parent);
 static void animate_sliders(bool show);
 static void sliders_anim_cb(void *var, int32_t v);
+static void color_changed_cb(lv_color_t color);
 static void timer_hide_sliders_cb(lv_timer_t *timer);
 static void show_sliders();
 static void hide_sliders();
@@ -52,7 +54,7 @@ static lv_obj_t *ok_btn_w;
 static lv_obj_t *cancel_btn_w;
 static lv_obj_t *off_button_w;
 static lv_obj_t *on_button_w;
-// This timer is used to hide the slider after a while
+static lv_obj_t *color_selector_w;
 static lv_timer_t *sliders_hide_timer = NULL;
 
 
@@ -90,6 +92,7 @@ void is_bed_ui(void) {
 
     // Add the various widgets
     background_image_w = composite_image_create(screen_w, background_clicked_cb);
+    color_selector_w = color_selector_create(screen_w, color_changed_cb);
     pattern_slider_w = pattern_slider_create(screen_w, pattern_changed_cb, encoder_groups[0]);
     center_brightness_w = brightness_slider_create(screen_w, brightness_changed_cb, encoder_groups[0], ZONE_CENTER, "Bed");
     front_brightness_w = brightness_slider_create(screen_w, brightness_changed_cb, encoder_groups[1], ZONE_FRONT, "Bench");
@@ -330,6 +333,9 @@ static void sliders_anim_cb(void *var, int32_t v) {
     lv_obj_set_y(cage_brightness_w, y + 3 * kSlidersSpacing);
     lv_obj_set_y(off_button_w, y - 60);
     lv_obj_set_y(on_button_w, y - 60);
+}
+
+static void color_changed_cb(lv_color_t color) {
 }
 
 static void timer_hide_sliders_cb(lv_timer_t *timer) {

@@ -47,6 +47,9 @@ unsigned long last_tick = 0;
 // Last pattern that we did output to the LCD
 uint8_t to_lcd_pattern_index = 0;
 
+// Was the SD card initialized?
+bool sd_initialized = false;
+
 //
 // The main setup function
 //
@@ -69,7 +72,7 @@ void setup()
     // Start the LEDs
     leds.begin();
 
-    // Add the SD Card
+    // Add the patterns fron the SD Card
     if (SD.begin(SD_ChipSelect))
     {
         Serial.println("SD Card initialized");
@@ -80,7 +83,12 @@ void setup()
         // Start MTP
         MTP.begin();
         MTP.addFilesystem(SD, "SD_Card");
+
+        sd_initialized = true;
     }
+
+    // Add a static pattern
+    add_static_pattern();
 
     // USB host
     usb_host.begin();
@@ -147,7 +155,9 @@ void loop() {
     }
 
     // Update MTP
-    MTP.loop();
+    if (sd_initialized) {
+        MTP.loop();
+    }
 
     // USB host
     usb_host.Task();

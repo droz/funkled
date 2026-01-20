@@ -8,6 +8,9 @@
 // Fill the patterns array with the cached patterns
 extern void add_cached_patterns();
 
+// Add a static pattern to the patterns array
+extern void add_static_pattern();
+
 // Parameters for the pattern function
 typedef struct {
     // The current time, in ms
