@@ -7,6 +7,9 @@
 #error "LV_USE_GRID needs to be enabled"
 #endif
 
+// The currently selected color
+extern lv_color_t selected_color;
+
 // The type for a callback everytime the color changes
 typedef void (*color_changed_cb_t)(lv_color_t color);
 

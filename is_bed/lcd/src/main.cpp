@@ -4,6 +4,7 @@
 #include "ui/pattern_slider.h"
 #include "ui/brightness_slider.h"
 #include "ui/composite_image.h"
+#include "ui/color_selector.h"
 #include <TFT_eSPI.h>
 #include <FT6336U.h>
 #include <Wire.h>
@@ -125,8 +126,10 @@ void loop()
         if (from_controller_msg.pattern_index < MAX_LED_PATTERNS) {
             uint8_t index = from_controller_msg.pattern_index;
             pattern_names[index] = String(from_controller_msg.pattern_name);
+            pattern_color_wheel[index] = from_controller_msg.pattern_color_wheel;
             if (index >= num_patterns) {
                 num_patterns = index + 1;
+                unhide_widgets();
                 pattern_slider_set_pattern(0);
             }
         }
@@ -148,6 +151,9 @@ static void comms_send_cb(lv_timer_t *timer) {
     }
     to_controller_msg.selected_pattern_index = selected_pattern_index;
     to_controller_msg.displayed_pattern_index = displayed_pattern_index;
+    to_controller_msg.selected_color.r = selected_color.red;
+    to_controller_msg.selected_color.g = selected_color.green;
+    to_controller_msg.selected_color.b = selected_color.blue;
 
     // Send the message
     controller_transfer.txObj(to_controller_msg);

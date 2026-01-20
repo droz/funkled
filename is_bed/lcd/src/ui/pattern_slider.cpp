@@ -11,6 +11,7 @@ static const uint32_t kSliderSize = 45; // Size of the buttons
 // Shared variables
 //
 String pattern_names[MAX_LED_PATTERNS];
+uint8_t pattern_color_wheel[MAX_LED_PATTERNS];
 size_t num_patterns = 0;
 uint32_t displayed_pattern_index = 0;
 uint32_t selected_pattern_index = 0;
@@ -89,6 +90,7 @@ void pattern_slider_set_pattern(uint32_t pattern_index)
         return; // Invalid pattern index
     }
     displayed_pattern_index = pattern_index;
+    pattern_changed_cb(displayed_pattern_index);
     lv_label_set_text(pattern_label_w, pattern_names[displayed_pattern_index].c_str());
 }
 
@@ -102,7 +104,6 @@ static void left_btn_event_cb(lv_event_t *e)
     // Decrement the pattern index
     displayed_pattern_index = (displayed_pattern_index == 0) ? num_patterns - 1 : displayed_pattern_index - 1;
     pattern_slider_set_pattern(displayed_pattern_index);
-    pattern_changed_cb(displayed_pattern_index);
 }
 
 // Right button callback
@@ -111,7 +112,6 @@ static void right_btn_event_cb(lv_event_t *e)
     // Increment the pattern index
     displayed_pattern_index = (displayed_pattern_index + 1) % num_patterns;
     pattern_slider_set_pattern(displayed_pattern_index);
-    pattern_changed_cb(displayed_pattern_index);
 }
 
 

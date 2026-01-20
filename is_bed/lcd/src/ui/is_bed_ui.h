@@ -16,8 +16,11 @@ extern "C"
 #error "LV_USE_FLEX needs to be enabled"
 #endif
 
-    // Create a complete UI for the IS Bed
-    void is_bed_ui(void);
+// Create a complete UI for the IS Bed
+void is_bed_ui(void);
+
+// Unhide the widgets once we have at least received one pattern from the controller
+void unhide_widgets();
 
 #ifdef __cplusplus
 } /* extern "C" */

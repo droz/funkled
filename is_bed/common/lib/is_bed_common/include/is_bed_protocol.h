@@ -31,8 +31,8 @@ struct [[gnu::packed]] is_bed_lcd_to_controller_t {
     uint8_t displayed_pattern_index;
     // The brightnesses of each zone
     uint8_t zone_brightness[NUM_ZONES];
-    // The static color
-    color_rgb_t static_color;
+    // The currently selected color (for static pattern for example)
+    color_rgb_t selected_color;
 };
 
 #endif // IS_BED_PROTOCOL_H

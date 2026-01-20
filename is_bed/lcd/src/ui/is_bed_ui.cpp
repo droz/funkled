@@ -55,6 +55,7 @@ static lv_obj_t *cancel_btn_w;
 static lv_obj_t *off_button_w;
 static lv_obj_t *on_button_w;
 static lv_obj_t *color_selector_w;
+static lv_obj_t *no_connect_w;
 static lv_timer_t *sliders_hide_timer = NULL;
 
 
@@ -88,7 +89,7 @@ void is_bed_ui(void) {
 
     // Make sure that the top level screen is not scrollable
     lv_obj_t *screen_w = lv_screen_active();
-    lv_obj_clear_flag(screen_w, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_remove_flag(screen_w, LV_OBJ_FLAG_SCROLLABLE);
 
     // Add the various widgets
     background_image_w = composite_image_create(screen_w, background_clicked_cb);
@@ -102,7 +103,39 @@ void is_bed_ui(void) {
     cancel_btn_w = cancel_button_create(screen_w);
     off_button_w = off_button_create(screen_w);
     on_button_w = on_button_create(screen_w);
+    // And hide them all for now
+    lv_obj_add_flag(background_image_w, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(color_selector_w, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(pattern_slider_w, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(center_brightness_w,  LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(front_brightness_w,   LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(headboard_brightness_w, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(cage_brightness_w,    LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(ok_btn_w,             LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(cancel_btn_w,         LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(off_button_w,         LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(on_button_w,          LV_OBJ_FLAG_HIDDEN);
+    // A Label to show when there is no controller connection
+    no_connect_w = lv_label_create(screen_w);
+    lv_obj_align(no_connect_w, LV_ALIGN_CENTER, 0, 0);
+    lv_label_set_text(no_connect_w, "Controller \nnot connected");
+    lv_obj_set_style_text_align(no_connect_w, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_text_font(no_connect_w, LV_FONT_DEFAULT, LV_PART_MAIN);
 }
+
+// Unhide all the widgets, when we get a connection to the controller
+void unhide_widgets() {
+    lv_obj_remove_flag(background_image_w, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_remove_flag(pattern_slider_w, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(no_connect_w, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_remove_flag(center_brightness_w,  LV_OBJ_FLAG_HIDDEN);
+    lv_obj_remove_flag(front_brightness_w,   LV_OBJ_FLAG_HIDDEN);
+    lv_obj_remove_flag(headboard_brightness_w, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_remove_flag(cage_brightness_w,    LV_OBJ_FLAG_HIDDEN);
+    lv_obj_remove_flag(off_button_w,         LV_OBJ_FLAG_HIDDEN);
+    lv_obj_remove_flag(on_button_w,          LV_OBJ_FLAG_HIDDEN);
+}
+
 
 //
 // Private helper functions
@@ -273,14 +306,19 @@ static void brightness_changed_cb(lv_event_t *e)
 
 static void pattern_changed_cb(uint32_t pattern_index)
 {
-    hide_sliders();
     // Show or hide the validate buttons depending on whether there was a change
     if (selected_pattern_index != pattern_index) {
-        lv_obj_clear_flag(ok_btn_w, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_clear_flag(cancel_btn_w, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_remove_flag(ok_btn_w, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_remove_flag(cancel_btn_w, LV_OBJ_FLAG_HIDDEN);
     } else {
         lv_obj_add_flag(ok_btn_w, LV_OBJ_FLAG_HIDDEN);
         lv_obj_add_flag(cancel_btn_w, LV_OBJ_FLAG_HIDDEN);
+    }
+    // Show or hide the color selector depending on the pattern
+    if (pattern_color_wheel[pattern_index]) {
+        lv_obj_remove_flag(color_selector_w, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_obj_add_flag(color_selector_w, LV_OBJ_FLAG_HIDDEN);
     }
 }
 

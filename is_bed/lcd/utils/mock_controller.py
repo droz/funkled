@@ -11,6 +11,7 @@ import sys
 from dataclasses import dataclass
 from typing import List
 import random
+import colorsys
 from pySerialTransfer import pySerialTransfer as txfer
 
 
@@ -53,6 +54,35 @@ class ControllerToLcdFrame:
         return data
 
 
+@dataclass
+class LcdToControllerFrame:
+    """Frame received from LCD to controller"""
+    selected_pattern_index: int
+    displayed_pattern_index: int
+    zone_brightnesses: List[int]  # 4 zones, 0-100
+    selected_color: ColorRGB
+
+    @staticmethod
+    def unpack(data: bytes) -> 'LcdToControllerFrame':
+        """Unpack bytes into a frame structure"""
+        if len(data) != 9:
+            raise ValueError(f"Invalid frame size: {len(data)} bytes")
+        
+        selected_pattern_index = struct.unpack('B', data[0:1])[0]
+        displayed_pattern_index = struct.unpack('B', data[1:2])[0]
+        zone_brightnesses = list(struct.unpack('BBBB', data[2:6]))
+        r, g, b = struct.unpack('BBB', data[6:9])
+        selected_color = ColorRGB(r, g, b)
+        
+        return LcdToControllerFrame(
+            selected_pattern_index=selected_pattern_index,
+            displayed_pattern_index=displayed_pattern_index,
+            zone_brightnesses=zone_brightnesses,
+            selected_color=selected_color
+        )
+
+
+
 # Predefined patterns for testing
 PATTERNS = [
     "Rotate",
@@ -67,64 +97,85 @@ PATTERNS = [
     "Aurora",
 ]
 
-# Predefined color sets
-COLOR_PRESETS = {
-    "red": [ColorRGB(255, 0, 0)] * NUM_ZONES,
-    "green": [ColorRGB(0, 255, 0)] * NUM_ZONES,
-    "blue": [ColorRGB(0, 0, 255)] * NUM_ZONES,
-    "white": [ColorRGB(255, 255, 255)] * NUM_ZONES,
-    "rainbow": [
-        ColorRGB(255, 0, 0),    # Cage: Red
-        ColorRGB(255, 127, 0),  # Center: Orange
-        ColorRGB(0, 255, 0),    # Front: Green
-        ColorRGB(0, 0, 255),    # Headboard: Blue
-    ],
-    "warm": [
-        ColorRGB(255, 100, 0),  # Warm orange
-        ColorRGB(255, 50, 0),   # Deep orange
-        ColorRGB(255, 150, 50), # Light orange
-        ColorRGB(255, 75, 25),  # Red-orange
-    ],
-    "cool": [
-        ColorRGB(0, 100, 255),  # Light blue
-        ColorRGB(0, 200, 200),  # Cyan
-        ColorRGB(100, 0, 255),  # Purple
-        ColorRGB(0, 150, 255),  # Sky blue
-    ],
-}
+def hsv_to_rgb(h: float, s: float = 1.0, v: float = 1.0) -> ColorRGB:
+    """Convert HSV color to RGB (0-255 range)"""
+    r, g, b = colorsys.hsv_to_rgb(h, s, v)
+    return ColorRGB(int(r * 255), int(g * 255), int(b * 255))
 
 
-def send_pattern_enumeration(transfer: txfer.SerialTransfer, delay: float = 0.1) -> None:
-    """Send all pattern names to the LCD for enumeration"""
-    print(f"\nEnumerating {len(PATTERNS)} patterns...")
-    for idx, pattern_name in enumerate(PATTERNS):
-        frame = ControllerToLcdFrame(
-            pattern_name=pattern_name,
-            pattern_index=idx,
-            pattern_color_wheel= (idx == 0),  # Enable color wheel for first pattern
-            zone_colors=[ColorRGB(0, 0, 0)] * NUM_ZONES
-        )
-        payload = frame.pack()
-        print(f"  Sending pattern {idx}: {pattern_name}")
-        print(f"    Frame size: {len(payload)} bytes")
-        print(f"    Payload: {payload.hex(' ')}")
-        transfer.tx_buff = payload
-        transfer.send(len(payload))
-    print("Pattern enumeration complete!")
+def receive_lcd_status(transfer: txfer.SerialTransfer) -> None:
+    """Check for and display messages from the LCD"""
+    if transfer.available() == 9:
+        # Extract the data
+        data = bytes(transfer.rx_buff[:9])
+        try:
+            frame = LcdToControllerFrame.unpack(data)
+            print(f"\n{'='*60}")
+            print(f"LCD Status Received:")
+            print(f"  Selected Pattern Index: {frame.selected_pattern_index} ({PATTERNS[frame.selected_pattern_index] if frame.selected_pattern_index < len(PATTERNS) else 'Unknown'})")
+            print(f"  Displayed Pattern Index: {frame.displayed_pattern_index} ({PATTERNS[frame.displayed_pattern_index] if frame.displayed_pattern_index < len(PATTERNS) else 'Unknown'})")
+            print(f"  Zone Brightnesses:")
+            zone_names = ["Cage", "Center", "Front", "Headboard"]
+            for i, brightness in enumerate(frame.zone_brightnesses):
+                print(f"    {zone_names[i]:12s}: {brightness:3d}%")
+            print(f"  Selected Color: RGB({frame.selected_color.r}, {frame.selected_color.g}, {frame.selected_color.b})")
+            print(f"{'='*60}\n")
+        except Exception as e:
+            print(f"Error unpacking LCD frame: {e}")
 
 
-def send_color_update(transfer: txfer.SerialTransfer, colors: List[ColorRGB], 
-                      pattern_idx: int = 0) -> None:
-    """Send a color update frame"""
-    frame = ControllerToLcdFrame(
-        pattern_name=PATTERNS[pattern_idx % len(PATTERNS)],
-        pattern_index=pattern_idx,
-        pattern_color_wheel=False,
-        zone_colors=colors
-    )
-    payload = frame.pack()
-    transfer.txBuff = list(payload)
-    transfer.send(len(payload))
+def continuous_update_loop(transfer: txfer.SerialTransfer, update_rate: float = 0.1) -> None:
+    """Continuously send updates and receive status from LCD"""
+    print("\n" + "="*60)
+    print("Starting continuous update loop...")
+    print("Press Ctrl+C to stop")
+    print("="*60 + "\n")
+    
+    pattern_idx = 0
+    hue = 0.0  # HSV hue (0.0 to 1.0)
+    hue_step = 0.005  # Small step for smooth color transitions
+    
+    try:
+        while True:
+            # Generate smooth color gradient
+            color = hsv_to_rgb(hue)
+            
+            # Create zone colors with slight variations
+            zone_colors = [
+                hsv_to_rgb((hue + 0.0) % 1.0),  # Cage
+                hsv_to_rgb((hue + 0.25) % 1.0), # Center
+                hsv_to_rgb((hue + 0.5) % 1.0),  # Front
+                hsv_to_rgb((hue + 0.75) % 1.0), # Headboard
+            ]
+            
+            # Send update to LCD
+            frame = ControllerToLcdFrame(
+                pattern_name=PATTERNS[pattern_idx],
+                pattern_index=pattern_idx,
+                pattern_color_wheel=pattern_idx == 1,
+                zone_colors=zone_colors
+            )
+            payload = frame.pack()
+            transfer.tx_buff = payload
+            transfer.send(len(payload))
+            
+            # Update hue for smooth color cycling
+            hue = (hue + hue_step) % 1.0
+
+            # Progress indicator
+            print(f"Sending pattern {pattern_idx} ({PATTERNS[pattern_idx]}), hue: {hue:.2f}")
+            
+            # Check for incoming messages from LCD
+            receive_lcd_status(transfer)
+            
+            # Cycle through patterns periodically
+            pattern_idx = (pattern_idx + 1) % len(PATTERNS)
+            
+            time.sleep(update_rate)
+            
+    except KeyboardInterrupt:
+        print("\n\nStopping continuous update loop...")
+
 
 
 def main():
@@ -140,6 +191,17 @@ def main():
         type=int,
         default=115200,
         help='Baud rate (default: 115200)'
+    )
+    parser.add_argument(
+        '-r', '--rate',
+        type=float,
+        default=0.1,
+        help='Update rate in seconds (default: 0.1)'
+    )
+    parser.add_argument(
+        '--enumerate-only',
+        action='store_true',
+        help='Only send pattern enumeration and exit'
     )
     
     args = parser.parse_args()
@@ -158,40 +220,17 @@ def main():
     print("Serial port opened successfully!")
     
     # Send pattern enumeration
-    send_pattern_enumeration(transfer)
+    #send_pattern_enumeration(transfer)
     
-    #print(f"\nStarting demo mode (interval: {interval}s)...")
-    #print("Press Ctrl+C to stop\n")
-    #
-    #preset_names = list(COLOR_PRESETS.keys())
-    #pattern_idx = 0
-    #preset_idx = 0
-    #
-    #try:
-    #    while True:
-    #        preset_name = preset_names[preset_idx]
-    #        pattern_name = PATTERNS[pattern_idx]
-    #        colors = COLOR_PRESETS[preset_name]
-    #        
-    #        print(f"Pattern: {pattern_name:12} | Colors: {preset_name:10} | "
-    #              f"Zone colors: R{colors[0].r:3} G{colors[0].g:3} B{colors[0].b:3} ...")
-    #        
-    #        send_color_update(transfer, colors, pattern_idx)
-    #        
-    #        time.sleep(interval)
-    #        
-    #        # Cycle through patterns and presets
-    #        preset_idx = (preset_idx + 1) % len(preset_names)
-    #        if preset_idx == 0:
-    #            pattern_idx = (pattern_idx + 1) % len(PATTERNS)
-    #
-    #except KeyboardInterrupt:
-    #    print("\nDemo stopped.")
-    
+    if not args.enumerate_only:
+        # Start continuous update loop
+        continuous_update_loop(transfer, args.rate)
+
     transfer.close()
     print("Serial port closed.")
 
 if __name__ == "__main__":
     main()
+
 
 
