@@ -10,8 +10,7 @@ uint32_t num_led_patterns = 0;
 void static_pattern(led_pattern_params_t p) {
     for (uint32_t i = 0; i < p.num_leds; i++)
     {
-        uint8_t palette_index = i * 255 / p.num_leds;
-        p.leds[i] = ColorFromPalette(*p.palette, palette_index);
+        p.leds[i] = p.single_color;
     }
 }
 

@@ -9,6 +9,7 @@
 #include <USBHost_t36.h>
 #include <SerialTransfer.h>
 #include <is_bed_protocol.h>
+#include <FastLED.h>
 
 const int SD_ChipSelect = BUILTIN_SDCARD;
 
@@ -19,6 +20,7 @@ const int SD_ChipSelect = BUILTIN_SDCARD;
 uint8_t led_beat_counter = 0;
 
 // LEDs
+#define LEDS_GAMMA_CORRECTION 2.8
 #define LED_REFRESH_RATE_HZ 20
 const uint8_t pin_list[] = {28, 24, 15, 7, 5, 3, 2, 1, 25, 14, 8, 6, 4, 22, 23, 0};
 const uint32_t bytes_per_led = 3;
@@ -113,6 +115,7 @@ void loop() {
             // Prepare data
             to_lcd_msg.pattern_index = to_lcd_pattern_index;
             led_patterns[to_lcd_pattern_index].name.toCharArray(to_lcd_msg.pattern_name, sizeof(to_lcd_msg.pattern_name));
+            to_lcd_msg.pattern_color_wheel = (led_patterns[to_lcd_pattern_index].cached_pattern == nullptr);
             to_lcd_pattern_index = (to_lcd_pattern_index + 1) % num_led_patterns;
             compute_display_colors(to_lcd_msg.zone_color);
             // Send data
@@ -147,6 +150,12 @@ void loop() {
             if (from_lcd_msg.displayed_pattern_index < num_led_patterns) {
                 led_zones[i].ui_pattern_index = from_lcd_msg.displayed_pattern_index;
             }
+        }
+        // Change the single color
+        for (uint32_t i = 0; i < NUM_ZONES; i++) {
+            led_zones[i].single_color.r = from_lcd_msg.selected_color.r;
+            led_zones[i].single_color.g = from_lcd_msg.selected_color.g;
+            led_zones[i].single_color.b = from_lcd_msg.selected_color.b;
         }
         // Update the brightness
         for (uint32_t i = 0; i < NUM_ZONES; i++) {
@@ -189,9 +198,11 @@ static void led_refresh()
             for (uint32_t k = segment->string_offset; k < segment->string_offset + segment->num_leds; k++)
             {
                 uint32_t color_u32 = 0x000000;
+                // Apply gamma correction.
+                leds_crgb[k] = applyGamma_video(leds_crgb[k], LEDS_GAMMA_CORRECTION, LEDS_GAMMA_CORRECTION, LEDS_GAMMA_CORRECTION);
+                // Scale for brightness
                 leds_crgb[k].nscale8(zone->brightness);
-                // The green LEDs are stronger than the other colors. Dim them a little bit to help with color balance.
-                leds_crgb[k].g = scale8(leds_crgb[k].g, 200);
+                // Now we swizzle the bits according to the color ordering
                 switch (zone->color_ordering)
                 {
                 case WS2811_RGB:
