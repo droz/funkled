@@ -1,6 +1,6 @@
 #include "led_array.h"
 #include "led_pattern.h"
-#include "cached_patterns/cached_pattern.h"
+#include "cached_pattern.h"
 #include <Arduino.h>
 #include <OctoWS2811.h>
 #include <Wire.h>
@@ -73,14 +73,9 @@ void setup()
     if (SD.begin(SD_ChipSelect))
     {
         Serial.println("SD Card initialized");
-        CACHED_PATTERN_LOAD(abstract_gradient);
-        CACHED_PATTERN_LOAD(blue_light_rays);
-        CACHED_PATTERN_LOAD(color_roll);
-        CACHED_PATTERN_LOAD(fire);
-        CACHED_PATTERN_LOAD(flash);
-        CACHED_PATTERN_LOAD(matrix);
-        CACHED_PATTERN_LOAD(rainbow);
-        CACHED_PATTERN_LOAD(space_warp);
+        // Load the cached patterns from the SD card
+        load_cached_patterns();
+        add_cached_patterns();
 
         // Start MTP
         MTP.begin();
@@ -94,8 +89,6 @@ void setup()
     // We are done. Don't change the LEDs yet, we will do that when 
     // we detect connection to the LCD.
     Serial.println("Setup done");
-
-
 }
 
 void loop() {
@@ -111,8 +104,8 @@ void loop() {
             digitalWrite(STATUS_RED, LOW);
             // Prepare data
             to_lcd_msg.pattern_index = to_lcd_pattern_index;
-            strcpy(to_lcd_msg.pattern_name, led_patterns[to_lcd_pattern_index].name);
-            to_lcd_pattern_index = (to_lcd_pattern_index + 1) % num_led_patterns();
+            led_patterns[to_lcd_pattern_index].name.toCharArray(to_lcd_msg.pattern_name, sizeof(to_lcd_msg.pattern_name));
+            to_lcd_pattern_index = (to_lcd_pattern_index + 1) % num_led_patterns;
             compute_display_colors(to_lcd_msg.zone_color);
             // Send data
             uint16_t send_size = lcd_transfer.txObj(to_lcd_msg, 0, sizeof(to_lcd_msg));
@@ -133,17 +126,17 @@ void loop() {
     }
 
     // Listen for messages from the LCD
-    if (lcd_transfer.available()) {
+    while (lcd_transfer.available()) {
         lcd_transfer.rxObj(from_lcd_msg);
         // Change the selected pattern
         for (uint32_t i = 0; i < NUM_ZONES; i++) {
-            if (from_lcd_msg.selected_pattern_index < num_led_patterns()) {
+            if (from_lcd_msg.selected_pattern_index < num_led_patterns) {
                 led_zones[i].led_pattern_index = from_lcd_msg.selected_pattern_index;
             }
         }
         // Change the displayed pattern
         for (uint32_t i = 0; i < NUM_ZONES; i++) {
-            if (from_lcd_msg.displayed_pattern_index < num_led_patterns()) {
+            if (from_lcd_msg.displayed_pattern_index < num_led_patterns) {
                 led_zones[i].ui_pattern_index = from_lcd_msg.displayed_pattern_index;
             }
         }
@@ -171,16 +164,18 @@ static void led_refresh()
         {
             led_segment_t *segment = &led_string->segments[j];
             led_zone_t *zone = &led_zones[segment->zone];
-            led_patterns[zone->led_pattern_index]
-                .update(
-                    now,
-                    zone->update_period_ms,
-                    composed_palette(&led_palettes[zone->palette_index], zone->single_color),
-                    zone->single_color,
-                    i,
-                    j,
-                    segment->num_leds,
-                    leds_crgb + segment->string_offset);
+            led_pattern_params_t params;
+            led_pattern_t& pattern = led_patterns[zone->led_pattern_index];
+            params.time_ms = now;
+            params.period_ms = zone->update_period_ms;
+            params.palette = composed_palette(&led_palettes[zone->palette_index], zone->single_color);
+            params.single_color = zone->single_color;
+            params.cached_pattern = pattern.cached_pattern;
+            params.string_index = i;
+            params.segment_index = j;
+            params.num_leds = segment->num_leds;
+            params.leds = leds_crgb + segment->string_offset;
+            pattern.update(params);
             for (uint32_t k = segment->string_offset; k < segment->string_offset + segment->num_leds; k++)
             {
                 uint32_t color_u32 = 0x000000;
@@ -218,9 +213,6 @@ static void led_refresh()
         }
     }
     leds.show();
-    // Send a dot character on the serial port
-    Serial.print(".");
-    Serial.flush();
 }
 
 // Compute the colors to display for each zone on the LCD for the current selected pattern
@@ -230,15 +222,17 @@ static void compute_display_colors(color_rgb_t zone_color[]) {
     for (uint32_t i = 0; i < NUM_ZONES; i++)
     {
         CRGB leds[num_leds];
-        led_patterns[led_zones[i].ui_pattern_index].update(
-            millis() * (100 + i) / 100, // To create a phase shift between the patterns
-            led_zones[i].update_period_ms,
-            composed_palette(&led_palettes[led_zones[i].palette_index], led_zones[i].single_color),
-            led_zones[i].single_color,
-            0,
-            0,
-            num_leds,
-            leds);
+        led_pattern_params_t params;
+        params.time_ms = millis() * (100 + i) / 100; // To create a phase shift between the patterns
+        params.period_ms = led_zones[i].update_period_ms;
+        params.palette = composed_palette(&led_palettes[led_zones[i].palette_index], led_zones[i].single_color);
+        params.single_color = led_zones[i].single_color;
+        params.cached_pattern = led_patterns[led_zones[i].ui_pattern_index].cached_pattern;
+        params.string_index = 0;
+        params.segment_index = 0;
+        params.num_leds = num_leds;
+        params.leds = leds;
+        led_patterns[led_zones[i].ui_pattern_index].update(params);
         uint32_t total_red = 0;
         uint32_t total_green = 0;
         uint32_t total_blue = 0;
@@ -251,9 +245,9 @@ static void compute_display_colors(color_rgb_t zone_color[]) {
         }
         // Don't use the brightness scaling. That will make sure that the display always shows the pattern even if the
         // zones are currently dimmed.
-        zone_color[i].r = total_red * 2 / num_leds;
-        zone_color[i].g = total_green * 2 / num_leds;
-        zone_color[i].b = total_blue * 2 / num_leds;
+        zone_color[i].r = total_red / num_leds;
+        zone_color[i].g = total_green / num_leds;
+        zone_color[i].b = total_blue / num_leds;
     }
 
 }

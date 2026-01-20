@@ -1,194 +1,111 @@
 #include "led_pattern.h"
 #include "led_array.h"
-#include "cached_patterns/cached_pattern.h"
 #include <Arduino.h>
 
+// All the available LED patterns
+led_pattern_t led_patterns[MAX_LED_PATTERNS];
+uint32_t num_led_patterns = 0;
+
 // Set all the LEDs to the palette color, regardless of time
-void static_pattern(uint32_t time_ms, uint32_t period_ms, const CRGBPalette16 *palette, CRGB single_color, uint32_t string_index, uint32_t segment_index, uint32_t num_leds, CRGB *leds)
-{
-    for (uint32_t i = 0; i < num_leds; i++)
+void static_pattern(led_pattern_params_t p) {
+    for (uint32_t i = 0; i < p.num_leds; i++)
     {
-        uint8_t palette_index = i * 255 / num_leds;
-        leds[i] = ColorFromPalette(*palette, palette_index);
+        uint8_t palette_index = i * 255 / p.num_leds;
+        p.leds[i] = ColorFromPalette(*p.palette, palette_index);
     }
 }
 
 // Rotate all the LEDs on a palette
-void rotate_pattern(uint32_t time_ms, uint32_t period_ms, const CRGBPalette16 *palette, CRGB single_color, uint32_t string_index, uint32_t segment_index, uint32_t num_leds, CRGB *leds)
-{
-    uint32_t offset = 255 - time_ms * 255 / period_ms;
-    for (uint32_t i = 0; i < num_leds; i++)
+void rotate_pattern(led_pattern_params_t p) {
+    uint32_t offset = 255 - p.time_ms * 255 / p.period_ms;
+    for (uint32_t i = 0; i < p.num_leds; i++)
     {
-        uint8_t palette_index = i * 255 / num_leds + offset;
-        leds[i] = ColorFromPalette(*palette, palette_index);
+        uint8_t palette_index = i * 255 / p.num_leds + offset;
+        p.leds[i] = ColorFromPalette(*p.palette, palette_index);
     }
 }
 
 // Fade all the LEDs on a palette
-void fade_pattern(uint32_t time_ms, uint32_t period_ms, const CRGBPalette16 *palette, CRGB single_color, uint32_t string_index, uint32_t segment_index, uint32_t num_leds, CRGB *leds)
-{
-    uint32_t fade_u32 = (time_ms * 512 / period_ms) % 512;
+void fade_pattern(led_pattern_params_t p) {
+    uint32_t fade_u32 = (p.time_ms * 512 / p.period_ms) % 512;
     if (fade_u32 >= 256)
     {
         fade_u32 = 511 - fade_u32;
     }
     uint8_t fade_u8 = fade_u32;
-    for (uint32_t i = 0; i < num_leds; i++)
+    for (uint32_t i = 0; i < p.num_leds; i++)
     {
-        uint8_t palette_index = i * 255 / num_leds;
-        leds[i] = ColorFromPalette(*palette, palette_index, fade_u8);
+        uint8_t palette_index = i * 255 / p.num_leds;
+        p.leds[i] = ColorFromPalette(*p.palette, palette_index, fade_u8);
     }
 }
 
 // Blink all the LEDs on a palette
-void blink_pattern(uint32_t time_ms, uint32_t period_ms, const CRGBPalette16 *palette, CRGB single_color, uint32_t string_index, uint32_t segment_index, uint32_t num_leds, CRGB *leds)
-{
-    bool on = time_ms % period_ms < period_ms / 2;
-    for (uint32_t i = 0; i < num_leds; i++)
+void blink_pattern(led_pattern_params_t p) {
+    bool on = p.time_ms % p.period_ms < p.period_ms / 2;
+    for (uint32_t i = 0; i < p.num_leds; i++)
     {
-        uint8_t palette_index = i * 255 / num_leds;
-        if (on)
-        {
-            leds[i] = ColorFromPalette(*palette, palette_index);
-        }
-        else
-        {
-            leds[i] = CRGB::Black;
+        uint8_t palette_index = i * 255 / p.num_leds;
+        if (on) {
+            p.leds[i] = ColorFromPalette(*p.palette, palette_index);
+        } else {
+            p.leds[i] = CRGB::Black;
         }
     }
 }
 
 
-void cached_pattern(cached_pattern_t* pattern, uint32_t time_ms, uint32_t string_index, uint32_t segment_index, uint32_t num_leds, CRGB *leds)
-{
-    led_string_t *led_string = &led_strings[string_index];
-    const uint32_t period_ms = pattern->header.animation_period_s * 1000;
-    const uint32_t step = (time_ms * pattern->header.animation_steps / period_ms) % fire.header.animation_steps;
+void cached_pattern(led_pattern_params_t p) {
+    led_string_t *led_string = &led_strings[p.string_index];
+    cached_pattern_t& pattern = *(p.cached_pattern);
+    const uint32_t period_ms = pattern.header.animation_period_s * 1000;
+    const uint32_t step = (p.time_ms * p.cached_pattern->header.animation_steps / period_ms) % pattern.header.animation_steps;
 
     // Seek to offset where to start reading LED data
     uint64_t pos = sizeof(cached_pattern_header_t);
-    pos += pattern->header.num_pixels * step * sizeof(CRGB);
-    for (uint32_t i = 0; i < string_index; i++) {
+    pos += pattern.header.num_pixels * step * sizeof(CRGB);
+    for (uint32_t i = 0; i < p.string_index; i++) {
         pos += led_strings[i].num_leds * sizeof(CRGB);
     }
-    for (uint32_t i = 0; i < segment_index; i++) {
+    for (uint32_t i = 0; i < p.segment_index; i++) {
         pos += led_string->segments[i].num_leds * sizeof(CRGB);
     }
-    pattern->file.seek(pos);
-    // Serial.printf("step: %d, pos: %" PRIu64 "\n", step, pos);
+    pattern.file.seek(pos);
 
     // Read LED data for segment.
-    for (uint32_t i = 0; i < num_leds; i++)
+    for (uint32_t i = 0; i < p.num_leds; i++)
     {
-        pattern->file.read(&leds[i], sizeof(CRGB));
+        pattern.file.read(&p.leds[i], sizeof(CRGB));
     }
 }
 
-void fire_pattern(uint32_t time_ms, uint32_t period_ms, const CRGBPalette16 *palette, CRGB single_color, uint32_t string_index, uint32_t segment_index, uint32_t num_leds, CRGB *leds)
-{
-    cached_pattern(&fire, time_ms, string_index, segment_index, num_leds, leds);
+// Add a cached patterns to the patterns array
+void add_cached_patterns() {
+    for (uint32_t i = 0; i < num_cached_patterns; i++) {
+        if (num_led_patterns < MAX_LED_PATTERNS) {
+            // We use the filename to name the pattern, but we have to do some sanitizing.
+            // Remove the file extension
+            String name = cached_patterns[i].filepath;
+            name = name.substring(name.lastIndexOf('/') + 1);
+            int dot_index = name.lastIndexOf('.');
+            if (dot_index != -1) {
+                name.remove(dot_index);
+            }
+            // Replace the underscores with spaces and adjust the case
+            name.replace('_', ' ');
+            name.toLowerCase();
+            // Find all the spaces and capitalize the next letter
+            for (int j = 0; j < name.length(); j++) {
+                if (j == 0 || name.charAt(j - 1) == ' ') {
+                    name.setCharAt(j, toupper(name.charAt(j)));
+                }
+            }
+            // Now we can fill the struct
+            led_patterns[num_led_patterns].name = name;
+            led_patterns[num_led_patterns].cached_pattern = &cached_patterns[i];
+            led_patterns[num_led_patterns].update = cached_pattern;
+            num_led_patterns++;
+        }
+    }
 }
 
-void blue_light_rays_pattern(uint32_t time_ms, uint32_t period_ms, const CRGBPalette16 *palette, CRGB single_color, uint32_t string_index, uint32_t segment_index, uint32_t num_leds, CRGB *leds)
-{
-    cached_pattern(&blue_light_rays, time_ms, string_index, segment_index, num_leds, leds);
-}
-
-void color_roll_pattern(uint32_t time_ms, uint32_t period_ms, const CRGBPalette16 *palette, CRGB single_color, uint32_t string_index, uint32_t segment_index, uint32_t num_leds, CRGB *leds)
-{
-    cached_pattern(&color_roll, time_ms, string_index, segment_index, num_leds, leds);
-}
-
-void flash_pattern(uint32_t time_ms, uint32_t period_ms, const CRGBPalette16 *palette, CRGB single_color, uint32_t string_index, uint32_t segment_index, uint32_t num_leds, CRGB *leds)
-{
-    cached_pattern(&flash, time_ms, string_index, segment_index, num_leds, leds);
-}
-
-void matrix_pattern(uint32_t time_ms, uint32_t period_ms, const CRGBPalette16 *palette, CRGB single_color, uint32_t string_index, uint32_t segment_index, uint32_t num_leds, CRGB *leds)
-{
-    cached_pattern(&matrix, time_ms, string_index, segment_index, num_leds, leds);
-}
-
-void rainbow_pattern(uint32_t time_ms, uint32_t period_ms, const CRGBPalette16 *palette, CRGB single_color, uint32_t string_index, uint32_t segment_index, uint32_t num_leds, CRGB *leds)
-{
-    cached_pattern(&rainbow, time_ms, string_index, segment_index, num_leds, leds);
-}
-
-void space_warp_pattern(uint32_t time_ms, uint32_t period_ms, const CRGBPalette16 *palette, CRGB single_color, uint32_t string_index, uint32_t segment_index, uint32_t num_leds, CRGB *leds)
-{
-    cached_pattern(&space_warp, time_ms, string_index, segment_index, num_leds, leds);
-}
-
-void abstract_gradient_pattern(uint32_t time_ms, uint32_t period_ms, const CRGBPalette16 *palette, CRGB single_color, uint32_t string_index, uint32_t segment_index, uint32_t num_leds, CRGB *leds)
-{
-    cached_pattern(&abstract_gradient, time_ms, string_index, segment_index, num_leds, leds);
-}
-
-
-led_pattern_t led_patterns[] = {
-     {
-        .name = "Fire",
-        .desc = "Fire Pattern",
-        .update = fire_pattern,
-    },
-    {
-        .name = "Gradient",
-        .desc = "Abstract Gradient",
-        .update = abstract_gradient_pattern,
-    },
-    {
-        .name = "Blue Rays",
-        .desc = "Blue Rays",
-        .update = blue_light_rays_pattern,
-    },
-    // {
-    //     .name = "Color Roll",
-    //     .desc = "Color Roll",
-    //     .update = color_roll_pattern,
-    // },
-    {
-        .name = "Matrix",
-        .desc = "Matrix",
-        .update = matrix_pattern,
-    },
-    {
-        .name = "Rainbow",
-        .desc = "Rainbow",
-        .update = rainbow_pattern,
-    },
-    {
-        .name = "Warp",
-        .desc = "Space Warp",
-        .update = space_warp_pattern,
-    },
-    //{
-    //    .name = "Flash",
-    //    .desc = "Flash",
-    //    .update = flash_pattern,
-    //},
-    // {
-    //     .name = "Rotate",
-    //     .desc = "Rotate through a palette",
-    //     .update = rotate_pattern,
-    // },
-    // {
-    //     .name = "Static",
-    //     .desc = "Assign the LEDs to a static palette",
-    //     .update = static_pattern,
-    // },
-    // {
-    //     .name = "Fade",
-    //     .desc = "Fade IN and OUT",
-    //     .update = fade_pattern,
-    // },
-    // {
-    //     .name = "Blink",
-    //     .desc = "Blink ON and OFF",
-    //     .update = blink_pattern,
-    // },
-};
-
-uint32_t num_led_patterns()
-{
-    return sizeof(led_patterns) / sizeof(led_pattern_t);
-}
