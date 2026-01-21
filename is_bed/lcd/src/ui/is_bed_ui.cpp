@@ -99,7 +99,7 @@ void is_bed_ui(void) {
     // Add the various widgets
     background_image_w = composite_image_create(screen_w, background_clicked_cb);
     color_selector_w = color_selector_create(screen_w, color_changed_cb);
-    frequency_slider_w = frequency_slider_create(screen_w, frequency_changed_cb, "Frequency");
+    frequency_slider_w = frequency_slider_create(screen_w, frequency_changed_cb);
     pattern_slider_w = pattern_slider_create(screen_w, pattern_changed_cb, encoder_groups[0]);
     ok_btn_w = ok_button_create(screen_w);
     cancel_btn_w = cancel_button_create(screen_w);
@@ -145,12 +145,6 @@ void unhide_widgets() {
     lv_obj_remove_flag(background_image_w, LV_OBJ_FLAG_HIDDEN);
     lv_obj_remove_flag(pattern_slider_w, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(no_connect_w, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_remove_flag(center_brightness_w, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_remove_flag(front_brightness_w, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_remove_flag(headboard_brightness_w, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_remove_flag(cage_brightness_w, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_remove_flag(off_button_w, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_remove_flag(on_button_w, LV_OBJ_FLAG_HIDDEN);
 }
 
 
@@ -323,10 +317,6 @@ static void brightness_changed_cb(lv_event_t *e)
 
 static void frequency_changed_cb(lv_event_t *e)
 {
-    // Get the slider widget that triggered the event
-    lv_obj_t *slider_w = (lv_obj_t *)lv_event_get_target(e);
-    // Get the current frequency value from the slider
-    int32_t slider_value = lv_slider_get_value(slider_w);
 }
 
 static void pattern_changed_cb(uint32_t pattern_index)
@@ -417,12 +407,24 @@ static void sliders_anim_cb(void *var, int32_t v) {
     lv_obj_set_y(off_button_w, y - 60);
     lv_obj_set_y(on_button_w, y - 60);
     if (v == 0) {
-        // At the beginning of the show, we make sure we show the dark overlay
+        // The beginning of the show
         lv_obj_remove_flag(dark_overlay_w, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_remove_flag(center_brightness_w, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_remove_flag(front_brightness_w, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_remove_flag(headboard_brightness_w, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_remove_flag(cage_brightness_w, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_remove_flag(off_button_w, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_remove_flag(on_button_w, LV_OBJ_FLAG_HIDDEN);
     }
     if (v == 511) {
-        // At the end of the hide, we hide the dark overlay
+        // The end of the hide
         lv_obj_add_flag(dark_overlay_w, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(center_brightness_w, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(front_brightness_w, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(headboard_brightness_w, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(cage_brightness_w, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(off_button_w, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_add_flag(on_button_w, LV_OBJ_FLAG_HIDDEN);
     }
 }
 

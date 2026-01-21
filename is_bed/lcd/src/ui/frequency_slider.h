@@ -8,6 +8,6 @@
 extern uint8_t frequency;
 
 // Create a simple slider widget
-lv_obj_t *frequency_slider_create(lv_obj_t *parent, lv_event_cb_t slider_changed_cb, const char* label);
+lv_obj_t *frequency_slider_create(lv_obj_t *parent, lv_event_cb_t slider_changed_cb);
 
 #endif // FREQUENCY_SLIDER_H

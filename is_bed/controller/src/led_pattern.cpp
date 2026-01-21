@@ -6,6 +6,10 @@
 led_pattern_t led_patterns[MAX_LED_PATTERNS];
 uint32_t num_led_patterns = 0;
 
+// The time at which the last strobe happened, both for real and on the LCD
+static uint32_t last_strobe_time_ms = 0;
+static uint32_t last_display_strobe_time_ms = 0;
+
 // Set all the LEDs to the palette color, regardless of time
 void static_pattern(led_pattern_params_t p) {
     for (uint32_t i = 0; i < p.num_leds; i++)
@@ -55,12 +59,23 @@ void blink_pattern(led_pattern_params_t p) {
 
 // Strobe all the LEDs on a palette
 void strobe_pattern(led_pattern_params_t p) {
-    bool on = p.time_ms % p.period_ms < p.period_ms / 2;
-    for (uint32_t i = 0; i < p.num_leds; i++)
-    {
-        uint8_t palette_index = i * 255 / p.num_leds;
+    // Figure out if enough time elapsed since last strobe
+    uint32_t& last_time_ms = p.display_only ? last_display_strobe_time_ms : last_strobe_time_ms;
+    uint32_t time_since_last_strobe_ms = p.time_ms - last_time_ms;
+    bool on = false;
+    // If this is far enough from the last strobe, turn on
+    if (time_since_last_strobe_ms >= p.period_ms) {
+        last_time_ms = p.time_ms;
+        on = true;
+    }
+    // If this is the same time as the last strobe, keep on
+    if (time_since_last_strobe_ms == 0) {
+        on = true;
+    }
+    // Set the LEDs
+    for (uint32_t i = 0; i < p.num_leds; i++) {
         if (on) {
-            p.leds[i] = ColorFromPalette(*p.palette, palette_index);
+            p.leds[i] = p.single_color;
         } else {
             p.leds[i] = CRGB::Black;
         }

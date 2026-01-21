@@ -158,6 +158,13 @@ void loop() {
             led_zones[i].single_color.g = from_lcd_msg.selected_color.g;
             led_zones[i].single_color.b = from_lcd_msg.selected_color.b;
         }
+        // Change the frequency/period
+        for (uint32_t i = 0; i < NUM_ZONES; i++) {
+            if (from_lcd_msg.frequency == 0) {
+                from_lcd_msg.frequency = 1; // Avoid division by zero
+            }
+            led_zones[i].update_period_ms = 10000 / from_lcd_msg.frequency;
+        }
         // Update the brightness
         for (uint32_t i = 0; i < NUM_ZONES; i++) {
             led_zones[i].brightness = from_lcd_msg.zone_brightness[i];
@@ -187,6 +194,7 @@ static void led_refresh()
             led_pattern_params_t params;
             led_pattern_t& pattern = led_patterns[zone->led_pattern_index];
             params.time_ms = now;
+            params.display_only = false;
             params.period_ms = zone->update_period_ms;
             params.palette = composed_palette(&led_palettes[zone->palette_index], zone->single_color);
             params.single_color = zone->single_color;
@@ -241,11 +249,13 @@ static void led_refresh()
 static void compute_display_colors(color_rgb_t zone_color[]) {
     // Compute the average color of the LEDs in each string.
     const uint32_t num_leds = 16;
+    uint32_t now = millis();
     for (uint32_t i = 0; i < NUM_ZONES; i++)
     {
         CRGB leds[num_leds];
         led_pattern_params_t params;
-        params.time_ms = millis() * (100 + i) / 100; // To create a phase shift between the patterns
+        params.time_ms = now;
+        params.display_only = true;
         params.period_ms = led_zones[i].update_period_ms;
         params.palette = composed_palette(&led_palettes[led_zones[i].palette_index], led_zones[i].single_color);
         params.single_color = led_zones[i].single_color;

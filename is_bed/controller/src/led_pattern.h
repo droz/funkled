@@ -33,6 +33,8 @@ typedef struct {
     uint32_t segment_index;
     // The number of LEDs in the string
     uint32_t num_leds;
+    // Is this for display only (not the actual LED string)
+    bool display_only;
     // The array of LEDs to update
     CRGB *leds;
 } led_pattern_params_t;
