@@ -10,8 +10,8 @@
 // The available LED patterns
 extern String pattern_names[MAX_LED_PATTERNS];
 extern size_t num_patterns;
-// Tells which pattern should display the color wheel
-extern uint8_t pattern_color_wheel[MAX_LED_PATTERNS];
+// The types of the patterns
+extern uint8_t pattern_types[MAX_LED_PATTERNS];
 // The currently displayed (not selected yet) pattern index
 extern uint32_t displayed_pattern_index;
 // The currently selected (user clicked validate) pattern index

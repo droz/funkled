@@ -33,7 +33,7 @@ class ControllerToLcdFrame:
     """Frame sent from controller to LCD"""
     pattern_name: str
     pattern_index: int
-    pattern_color_wheel: bool
+    pattern_type: int
     zone_colors: List[ColorRGB]
 
     def pack(self) -> bytes:
@@ -45,7 +45,7 @@ class ControllerToLcdFrame:
         # Pack the structure
         data = struct.pack('B', self.pattern_index)
         data += name_bytes
-        data += struct.pack('B', self.pattern_color_wheel)
+        data += struct.pack('B', self.pattern_type)
         
         # Pack all zone colors (RGB)
         for color in self.zone_colors:
@@ -61,11 +61,12 @@ class LcdToControllerFrame:
     displayed_pattern_index: int
     zone_brightnesses: List[int]  # 4 zones, 0-100
     selected_color: ColorRGB
+    frequency: int = 0  # Frerquency in Hz * 10
 
     @staticmethod
     def unpack(data: bytes) -> 'LcdToControllerFrame':
         """Unpack bytes into a frame structure"""
-        if len(data) != 9:
+        if len(data) != 10:
             raise ValueError(f"Invalid frame size: {len(data)} bytes")
         
         selected_pattern_index = struct.unpack('B', data[0:1])[0]
@@ -73,12 +74,14 @@ class LcdToControllerFrame:
         zone_brightnesses = list(struct.unpack('BBBB', data[2:6]))
         r, g, b = struct.unpack('BBB', data[6:9])
         selected_color = ColorRGB(r, g, b)
+        frequency = struct.unpack('B', data[9:10])[0]
         
         return LcdToControllerFrame(
             selected_pattern_index=selected_pattern_index,
             displayed_pattern_index=displayed_pattern_index,
             zone_brightnesses=zone_brightnesses,
-            selected_color=selected_color
+            selected_color=selected_color,
+            frequency=frequency
         )
 
 
@@ -87,7 +90,7 @@ class LcdToControllerFrame:
 PATTERNS = [
     "Rotate",
     "Static",
-    "Fade",
+    "Strobe",
     "Blink",
     "Rainbow",
     "Fire",
@@ -105,9 +108,9 @@ def hsv_to_rgb(h: float, s: float = 1.0, v: float = 1.0) -> ColorRGB:
 
 def receive_lcd_status(transfer: txfer.SerialTransfer) -> None:
     """Check for and display messages from the LCD"""
-    if transfer.available() == 9:
+    if transfer.available() == 10:
         # Extract the data
-        data = bytes(transfer.rx_buff[:9])
+        data = bytes(transfer.rx_buff[:10])
         try:
             frame = LcdToControllerFrame.unpack(data)
             print(f"\n{'='*60}")
@@ -119,6 +122,7 @@ def receive_lcd_status(transfer: txfer.SerialTransfer) -> None:
             for i, brightness in enumerate(frame.zone_brightnesses):
                 print(f"    {zone_names[i]:12s}: {brightness:3d}%")
             print(f"  Selected Color: RGB({frame.selected_color.r}, {frame.selected_color.g}, {frame.selected_color.b})")
+            print(f"  Frequency: {frame.frequency / 10.0} Hz")
             print(f"{'='*60}\n")
         except Exception as e:
             print(f"Error unpacking LCD frame: {e}")
@@ -152,7 +156,7 @@ def continuous_update_loop(transfer: txfer.SerialTransfer, update_rate: float = 
             frame = ControllerToLcdFrame(
                 pattern_name=PATTERNS[pattern_idx],
                 pattern_index=pattern_idx,
-                pattern_color_wheel=pattern_idx == 1,
+                pattern_type= pattern_idx if (pattern_idx == 1 or pattern_idx == 2) else 6,
                 zone_colors=zone_colors
             )
             payload = frame.pack()
@@ -163,7 +167,7 @@ def continuous_update_loop(transfer: txfer.SerialTransfer, update_rate: float = 
             hue = (hue + hue_step) % 1.0
 
             # Progress indicator
-            print(f"Sending pattern {pattern_idx} ({PATTERNS[pattern_idx]}), hue: {hue:.2f}")
+            print(f"Sending pattern {pattern_idx} ({PATTERNS[pattern_idx]}) ({frame.pattern_type}), hue: {hue:.2f}")
             
             # Check for incoming messages from LCD
             receive_lcd_status(transfer)

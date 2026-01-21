@@ -11,7 +11,7 @@ static const uint32_t kSliderSize = 45; // Size of the buttons
 // Shared variables
 //
 String pattern_names[MAX_LED_PATTERNS];
-uint8_t pattern_color_wheel[MAX_LED_PATTERNS];
+uint8_t pattern_types[MAX_LED_PATTERNS];
 size_t num_patterns = 0;
 uint32_t displayed_pattern_index = 0;
 uint32_t selected_pattern_index = 0;

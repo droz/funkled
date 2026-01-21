@@ -89,7 +89,8 @@ void setup()
         sd_initialized = true;
     }
 
-    // Add a static pattern
+    // Add a strobe and static pattern
+    add_strobe_pattern();
     add_static_pattern();
 
     // USB host
@@ -115,7 +116,7 @@ void loop() {
             // Prepare data
             to_lcd_msg.pattern_index = to_lcd_pattern_index;
             led_patterns[to_lcd_pattern_index].name.toCharArray(to_lcd_msg.pattern_name, sizeof(to_lcd_msg.pattern_name));
-            to_lcd_msg.pattern_color_wheel = (led_patterns[to_lcd_pattern_index].cached_pattern == nullptr);
+            to_lcd_msg.pattern_type = pattern_type(&led_patterns[to_lcd_pattern_index]);
             to_lcd_pattern_index = (to_lcd_pattern_index + 1) % num_led_patterns;
             compute_display_colors(to_lcd_msg.zone_color);
             // Send data

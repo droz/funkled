@@ -1,8 +1,10 @@
 #include "is_bed_ui.h"
 #include "composite_image.h"
 #include "brightness_slider.h"
+#include "frequency_slider.h"
 #include "pattern_slider.h"
 #include "color_selector.h"
+#include <is_bed_protocol.h>
 #include <Arduino.h>
 #include <FastLED.h>
 #include <zones.h>
@@ -18,6 +20,7 @@ static const uint32_t kSlidersSpacing = 45;        // Vertical spacing between s
 // Static prototypes
 //
 static void brightness_changed_cb(lv_event_t *e);
+static void frequency_changed_cb(lv_event_t *e);
 static void pattern_changed_cb(uint32_t pattern_index);
 static void ok_btn_event_cb(lv_event_t *e);
 static void cancel_btn_event_cb(lv_event_t *e);
@@ -55,7 +58,9 @@ static lv_obj_t *cancel_btn_w;
 static lv_obj_t *off_button_w;
 static lv_obj_t *on_button_w;
 static lv_obj_t *color_selector_w;
+static lv_obj_t *frequency_slider_w;
 static lv_obj_t *no_connect_w;
+static lv_obj_t *dark_overlay_w;
 static lv_timer_t *sliders_hide_timer = NULL;
 
 
@@ -94,27 +99,39 @@ void is_bed_ui(void) {
     // Add the various widgets
     background_image_w = composite_image_create(screen_w, background_clicked_cb);
     color_selector_w = color_selector_create(screen_w, color_changed_cb);
+    frequency_slider_w = frequency_slider_create(screen_w, frequency_changed_cb, "Frequency");
     pattern_slider_w = pattern_slider_create(screen_w, pattern_changed_cb, encoder_groups[0]);
+    ok_btn_w = ok_button_create(screen_w);
+    cancel_btn_w = cancel_button_create(screen_w);
+    // A dark overlay to dim the background when the brightness sliders are shown
+    dark_overlay_w = lv_btn_create(screen_w);
+    lv_obj_remove_style_all(dark_overlay_w);   // start from a blank slate
+    lv_obj_set_size(dark_overlay_w, LV_PCT(100), LV_PCT(100));
+    lv_obj_set_pos(dark_overlay_w, 0, 0);
+    lv_obj_set_style_bg_color(dark_overlay_w, lv_color_black(), 0);
+    lv_obj_set_style_bg_opa(dark_overlay_w, LV_OPA_0, 0);
+    lv_obj_add_event_cb(dark_overlay_w, background_clicked_cb, LV_EVENT_CLICKED, NULL);
+    // And the four brightness sliders
     center_brightness_w = brightness_slider_create(screen_w, brightness_changed_cb, encoder_groups[0], ZONE_CENTER, "Bed");
     front_brightness_w = brightness_slider_create(screen_w, brightness_changed_cb, encoder_groups[1], ZONE_FRONT, "Bench");
     headboard_brightness_w = brightness_slider_create(screen_w, brightness_changed_cb, encoder_groups[2], ZONE_HEADBOARD, "Headboard");
     cage_brightness_w = brightness_slider_create(screen_w, brightness_changed_cb, encoder_groups[3], ZONE_CAGE, "Cage");
-    ok_btn_w = ok_button_create(screen_w);
-    cancel_btn_w = cancel_button_create(screen_w);
     off_button_w = off_button_create(screen_w);
     on_button_w = on_button_create(screen_w);
     // And hide them all for now
     lv_obj_add_flag(background_image_w, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(color_selector_w, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(frequency_slider_w, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(pattern_slider_w, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(center_brightness_w,  LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(front_brightness_w,   LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(center_brightness_w, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(front_brightness_w, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(headboard_brightness_w, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(cage_brightness_w,    LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(ok_btn_w,             LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(cancel_btn_w,         LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(off_button_w,         LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(on_button_w,          LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(cage_brightness_w, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(ok_btn_w, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(cancel_btn_w, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(off_button_w, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(on_button_w, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(dark_overlay_w, LV_OBJ_FLAG_HIDDEN);
     // A Label to show when there is no controller connection
     no_connect_w = lv_label_create(screen_w);
     lv_obj_align(no_connect_w, LV_ALIGN_CENTER, 0, 0);
@@ -128,12 +145,12 @@ void unhide_widgets() {
     lv_obj_remove_flag(background_image_w, LV_OBJ_FLAG_HIDDEN);
     lv_obj_remove_flag(pattern_slider_w, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_flag(no_connect_w, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_remove_flag(center_brightness_w,  LV_OBJ_FLAG_HIDDEN);
-    lv_obj_remove_flag(front_brightness_w,   LV_OBJ_FLAG_HIDDEN);
+    lv_obj_remove_flag(center_brightness_w, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_remove_flag(front_brightness_w, LV_OBJ_FLAG_HIDDEN);
     lv_obj_remove_flag(headboard_brightness_w, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_remove_flag(cage_brightness_w,    LV_OBJ_FLAG_HIDDEN);
-    lv_obj_remove_flag(off_button_w,         LV_OBJ_FLAG_HIDDEN);
-    lv_obj_remove_flag(on_button_w,          LV_OBJ_FLAG_HIDDEN);
+    lv_obj_remove_flag(cage_brightness_w, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_remove_flag(off_button_w, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_remove_flag(on_button_w, LV_OBJ_FLAG_HIDDEN);
 }
 
 
@@ -211,10 +228,11 @@ static void animate_sliders(bool show)
     lv_anim_t a;
     lv_anim_init(&a);
     lv_anim_set_exec_cb(&a, sliders_anim_cb);
+    // We use different range of values to figure out if we are trying to show or hide
     if (show) {
-        lv_anim_set_values(&a, 256, 0);
+        lv_anim_set_values(&a, 0, 255);
     } else {
-        lv_anim_set_values(&a, 0, 256);
+        lv_anim_set_values(&a, 256, 511);
     }
     lv_anim_set_duration(&a, kSlidersAnimTimeMs);
     lv_anim_start(&a);
@@ -303,6 +321,13 @@ static void brightness_changed_cb(lv_event_t *e)
     zone_brightness[zone] = brightness;
 }
 
+static void frequency_changed_cb(lv_event_t *e)
+{
+    // Get the slider widget that triggered the event
+    lv_obj_t *slider_w = (lv_obj_t *)lv_event_get_target(e);
+    // Get the current frequency value from the slider
+    int32_t slider_value = lv_slider_get_value(slider_w);
+}
 
 static void pattern_changed_cb(uint32_t pattern_index)
 {
@@ -315,10 +340,19 @@ static void pattern_changed_cb(uint32_t pattern_index)
         lv_obj_add_flag(cancel_btn_w, LV_OBJ_FLAG_HIDDEN);
     }
     // Show or hide the color selector depending on the pattern
-    if (pattern_color_wheel[pattern_index]) {
+    if (pattern_types[pattern_index] == IS_BED_PATTERN_STATIC) {
         lv_obj_remove_flag(color_selector_w, LV_OBJ_FLAG_HIDDEN);
     } else {
         lv_obj_add_flag(color_selector_w, LV_OBJ_FLAG_HIDDEN);
+    }
+    // Show or hide the frequency slider depending on the pattern
+    if (pattern_types[pattern_index] == IS_BED_PATTERN_STROBE ||
+        pattern_types[pattern_index] == IS_BED_PATTERN_ROTATE ||
+        pattern_types[pattern_index] == IS_BED_PATTERN_FADE ||
+        pattern_types[pattern_index] == IS_BED_PATTERN_BLINK) {
+        lv_obj_remove_flag(frequency_slider_w, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_obj_add_flag(frequency_slider_w, LV_OBJ_FLAG_HIDDEN);
     }
 }
 
@@ -357,20 +391,39 @@ static void on_btn_event_cb(lv_event_t *e) {
 }
 
 static void sliders_anim_cb(void *var, int32_t v) {
-    int32_t y = lv_map(v, 0, 256, 70, -200);
-    int32_t opa = lv_map(v, 0, 256, LV_OPA_COVER, LV_OPA_TRANSP);
+    int32_t y, opa, overlay_opa;
+    if (v < 256) {
+        // We are showing the sliders
+        y = lv_map(v, 0, 255, -200, 70);
+        opa = lv_map(v, 0, 255, LV_OPA_TRANSP, LV_OPA_COVER);
+        overlay_opa = lv_map(v, 0, 255, LV_OPA_TRANSP, LV_OPA_70);
+    } else {
+        // We are hiding the sliders
+        y = lv_map(v, 511, 256, -200, 70);
+        opa = lv_map(v, 511, 256, LV_OPA_TRANSP, LV_OPA_COVER);
+        overlay_opa = lv_map(v, 511, 256, LV_OPA_TRANSP, LV_OPA_70);
+    }
     lv_obj_set_style_opa(center_brightness_w, opa, 0);
     lv_obj_set_style_opa(front_brightness_w, opa, 0);
     lv_obj_set_style_opa(headboard_brightness_w, opa, 0);
     lv_obj_set_style_opa(cage_brightness_w, opa, 0);
     lv_obj_set_style_opa(off_button_w, opa, 0);
     lv_obj_set_style_opa(on_button_w, opa, 0);
+    lv_obj_set_style_bg_opa(dark_overlay_w, overlay_opa, 0);
     lv_obj_set_y(center_brightness_w, y);
     lv_obj_set_y(front_brightness_w, y + kSlidersSpacing);
     lv_obj_set_y(headboard_brightness_w, y + 2 * kSlidersSpacing);
     lv_obj_set_y(cage_brightness_w, y + 3 * kSlidersSpacing);
     lv_obj_set_y(off_button_w, y - 60);
     lv_obj_set_y(on_button_w, y - 60);
+    if (v == 0) {
+        // At the beginning of the show, we make sure we show the dark overlay
+        lv_obj_remove_flag(dark_overlay_w, LV_OBJ_FLAG_HIDDEN);
+    }
+    if (v == 511) {
+        // At the end of the hide, we hide the dark overlay
+        lv_obj_add_flag(dark_overlay_w, LV_OBJ_FLAG_HIDDEN);
+    }
 }
 
 static void color_changed_cb(lv_color_t color) {

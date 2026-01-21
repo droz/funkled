@@ -53,6 +53,19 @@ void blink_pattern(led_pattern_params_t p) {
     }
 }
 
+// Strobe all the LEDs on a palette
+void strobe_pattern(led_pattern_params_t p) {
+    bool on = p.time_ms % p.period_ms < p.period_ms / 2;
+    for (uint32_t i = 0; i < p.num_leds; i++)
+    {
+        uint8_t palette_index = i * 255 / p.num_leds;
+        if (on) {
+            p.leds[i] = ColorFromPalette(*p.palette, palette_index);
+        } else {
+            p.leds[i] = CRGB::Black;
+        }
+    }
+}
 
 void cached_pattern(led_pattern_params_t p) {
     led_string_t *led_string = &led_strings[p.string_index];
@@ -108,6 +121,16 @@ void add_cached_patterns() {
     }
 }
 
+// Add a strobe pattern to the patterns array
+void add_strobe_pattern() {
+    if (num_led_patterns < MAX_LED_PATTERNS) {
+        led_patterns[num_led_patterns].name = "Strobe";
+        led_patterns[num_led_patterns].cached_pattern = nullptr;
+        led_patterns[num_led_patterns].update = strobe_pattern;
+        num_led_patterns++;
+    }
+}
+
 // Add a static pattern to the patterns array
 void add_static_pattern() {
     if (num_led_patterns < MAX_LED_PATTERNS) {
@@ -116,4 +139,27 @@ void add_static_pattern() {
         led_patterns[num_led_patterns].update = static_pattern;
         num_led_patterns++;
     }
+}
+
+// Return the type of a pattern
+is_bed_pattern_type_t pattern_type(led_pattern_t* pattern) {
+    if (pattern->update == cached_pattern) {
+        return IS_BED_PATTERN_CACHED;
+    }
+    if (pattern->update == strobe_pattern) {
+        return IS_BED_PATTERN_STROBE;
+    }
+    if (pattern->update == static_pattern) {
+        return IS_BED_PATTERN_STATIC;
+    }
+    if (pattern->update == rotate_pattern) {
+        return IS_BED_PATTERN_ROTATE;
+    }
+    if (pattern->update == fade_pattern) {
+        return IS_BED_PATTERN_FADE;
+    }
+    if (pattern->update == blink_pattern) {
+        return IS_BED_PATTERN_BLINK;
+    }
+    return IS_BED_PATTERN_UNKNOWN;
 }

@@ -3,10 +3,14 @@
 
 #include <FastLED.h>
 #include <Arduino.h>
+#include <is_bed_protocol.h>
 #include "cached_pattern.h"
 
 // Fill the patterns array with the cached patterns
 extern void add_cached_patterns();
+
+// Add a strobe pattern to the patterns array
+extern void add_strobe_pattern();
 
 // Add a static pattern to the patterns array
 extern void add_static_pattern();
@@ -52,5 +56,8 @@ typedef struct
 // A table of all the LED patterns available
 extern led_pattern_t led_patterns[];
 extern uint32_t num_led_patterns;
+
+// Return the type of a pattern
+extern is_bed_pattern_type_t pattern_type(led_pattern_t* pattern);
 
 #endif // LED_PATTERN_H
