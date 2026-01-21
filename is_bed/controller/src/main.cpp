@@ -21,7 +21,7 @@ uint8_t led_beat_counter = 0;
 
 // LEDs
 #define LEDS_GAMMA_CORRECTION 2.8
-#define LED_REFRESH_RATE_HZ 20
+#define LED_REFRESH_RATE_HZ 50
 const uint8_t pin_list[] = {28, 24, 15, 7, 5, 3, 2, 1, 25, 14, 8, 6, 4, 22, 23, 0};
 const uint32_t bytes_per_led = 3;
 DMAMEM uint8_t display_memory[max_leds * bytes_per_led];

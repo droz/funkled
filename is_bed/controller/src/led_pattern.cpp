@@ -75,7 +75,7 @@ void strobe_pattern(led_pattern_params_t p) {
     // Set the LEDs
     for (uint32_t i = 0; i < p.num_leds; i++) {
         if (on) {
-            p.leds[i] = p.single_color;
+            p.leds[i] = CRGB::White;
         } else {
             p.leds[i] = CRGB::Black;
         }

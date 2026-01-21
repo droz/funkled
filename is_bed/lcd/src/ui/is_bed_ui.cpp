@@ -135,7 +135,7 @@ void is_bed_ui(void) {
     // A Label to show when there is no controller connection
     no_connect_w = lv_label_create(screen_w);
     lv_obj_align(no_connect_w, LV_ALIGN_CENTER, 0, 0);
-    lv_label_set_text(no_connect_w, "Controller \nnot connected");
+    lv_label_set_text(no_connect_w, "Waiting\nfor\nconnection");
     lv_obj_set_style_text_align(no_connect_w, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_style_text_font(no_connect_w, LV_FONT_DEFAULT, LV_PART_MAIN);
 }

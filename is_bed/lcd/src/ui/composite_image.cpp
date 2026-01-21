@@ -1,4 +1,6 @@
 #include "composite_image.h"
+#include "pattern_slider.h"
+#include <is_bed_protocol.h>
 #include <Arduino.h>
 #include <numeric>
 
@@ -35,6 +37,12 @@ static void composite_image_timer_cb(lv_timer_t *timer);
 static void composite_image_update(const composite_image_dsc_t *dsc);
 
 //
+// Local variables
+//
+bool blanked_image = false;
+
+
+//
 // Global functions
 //
 lv_obj_t *composite_image_create(lv_obj_t *parent, lv_event_cb_t callback)
@@ -60,7 +68,7 @@ lv_obj_t *composite_image_create(lv_obj_t *parent, lv_event_cb_t callback)
     // Use the user data of the canvas to store the composite image descriptor
     lv_obj_set_user_data(canvas_w, (void *)&composite_dsc);
     // Create a timer to update the composite image
-    lv_timer_create(composite_image_timer_cb, 20, canvas_w);
+    lv_timer_create(composite_image_timer_cb, 100, canvas_w);
 
     // Register the callback if it exists
     if (callback != NULL) {
@@ -118,8 +126,28 @@ static void composite_image_timer_cb(lv_timer_t *timer)
 # if LV_LOG_LEVEL <= LV_LOG_LEVEL_TRACE
     uint32_t tic = lv_tick_get();
 # endif
-    composite_image_update(dsc);
-    lv_obj_invalidate(canvas_w);
+    // If we are displaying the frequency slider, do not update the composite image
+    if (pattern_types[displayed_pattern_index] == IS_BED_PATTERN_STROBE ||
+        pattern_types[displayed_pattern_index] == IS_BED_PATTERN_ROTATE ||
+        pattern_types[displayed_pattern_index] == IS_BED_PATTERN_FADE ||
+        pattern_types[displayed_pattern_index] == IS_BED_PATTERN_BLINK) {
+        if (!blanked_image) {
+            const composite_image_dsc_t dark_dsc = {
+                .buffer = dsc->buffer,
+                .background_image_dsc = dsc->background_image_dsc,
+                .layers = nullptr,
+                .layer_count = 0};
+            // Generate a dark image
+            composite_image_update(&dark_dsc);
+            lv_obj_invalidate(canvas_w);
+            blanked_image = true;
+        }
+    } else{
+        blanked_image = false;
+        composite_image_update(dsc);
+        lv_obj_invalidate(canvas_w);
+    }
+
 # if LV_LOG_LEVEL <= LV_LOG_LEVEL_TRACE
     uint32_t toc = lv_tick_get();
 # endif
