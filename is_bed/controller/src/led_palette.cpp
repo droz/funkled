@@ -68,27 +68,21 @@ led_palette_t led_palettes[] = {
     },
 };
 
-uint32_t num_led_palettes()
-{
+uint32_t num_led_palettes() {
     return sizeof(led_palettes) / sizeof(led_palette_t);
 }
 
 uint32_t palette_index = 0;
 
-const CRGBPalette16 *composed_palette(const led_palette_t *palette, CRGB color)
-{
+const CRGBPalette16 *composed_palette(const led_palette_t *palette, CRGB color) {
     static CRGBPalette16 composed_palette;
-    if (palette->compose_colors)
-    {
-        for (uint32_t i = 0; i < 16; i++)
-        {
+    if (palette->compose_colors) {
+        for (uint32_t i = 0; i < 16; i++) {
             uint8_t intensity = palette->palette.entries[i].getAverageLight();
             composed_palette.entries[i] = color.scale8(intensity);
         }
         return &composed_palette;
-    }
-    else
-    {
+    } else {
         return &palette->palette;
     }
 }

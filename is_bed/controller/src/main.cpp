@@ -1,6 +1,7 @@
 #include "led_array.h"
 #include "led_pattern.h"
 #include "cached_pattern.h"
+#include "usb_update.h"
 #include <Arduino.h>
 #include <OctoWS2811.h>
 #include <Wire.h>
@@ -35,6 +36,9 @@ USBHost usb_host;
 // USB serial port over USB host
 USBSerial_BigBuffer usb_host_serial(usb_host);  // BigBuffer helps avoid drops if you burst data
 SerialTransfer lcd_transfer;
+// Mass storage device over USB host
+USBDrive usb_drive(usb_host);
+USBFilesystem usb_filesystem(usb_host);
 // Data transfer structs
 is_bed_controller_to_lcd_t to_lcd_msg;
 is_bed_lcd_to_controller_t from_lcd_msg;
@@ -52,11 +56,13 @@ uint8_t to_lcd_pattern_index = 0;
 // Was the SD card initialized?
 bool sd_initialized = false;
 
+// Have we seen a USB device ?
+bool usb_device_connected = false;
+
 //
 // The main setup function
 //
-void setup()
-{
+void setup() {
     // Status LED
     pinMode(STATUS_RED, OUTPUT);
     pinMode(STATUS_GREEN, OUTPUT);
@@ -75,10 +81,10 @@ void setup()
     leds.begin();
 
     // Add the patterns fron the SD Card
-    if (SD.begin(SD_ChipSelect))
-    {
+    if (SD.begin(SD_ChipSelect)) {
         Serial.println("SD Card initialized");
         // Load the cached patterns from the SD card
+        Serial.println("Loading patterns from SD card");
         load_cached_patterns();
         add_cached_patterns();
 
@@ -103,6 +109,9 @@ void setup()
 }
 
 void loop() {
+    // USB host servicing
+    usb_host.Task();
+
     unsigned long now = millis();
     constexpr unsigned long PERIOD_MS = 1000 / LED_REFRESH_RATE_HZ;
     if (now - last_tick >= PERIOD_MS) {
@@ -111,8 +120,12 @@ void loop() {
         led_refresh();
         // Send data to the LCD
         if (usb_host_serial) {
-            // Connected.
-            digitalWrite(STATUS_RED, LOW);
+            if (!usb_device_connected) {
+                // Connected.
+                Serial.println("USB LCD screen connected");
+                usb_device_connected = true;
+                digitalWrite(STATUS_RED, LOW);
+            }
             // Prepare data
             to_lcd_msg.pattern_index = to_lcd_pattern_index;
             led_patterns[to_lcd_pattern_index].name.toCharArray(to_lcd_msg.pattern_name, sizeof(to_lcd_msg.pattern_name));
@@ -124,17 +137,6 @@ void loop() {
             lcd_transfer.sendData(send_size);
         }
 
-        // Heartbeat LED
-        led_beat_counter++;
-        if (led_beat_counter == LED_REFRESH_RATE_HZ) {
-            digitalWrite(STATUS_GREEN, LOW);
-            digitalWrite(STATUS_TEENSY_BUILTIN, LOW);
-        }
-        if (led_beat_counter == LED_REFRESH_RATE_HZ * 2) {
-            digitalWrite(STATUS_GREEN, HIGH);
-            digitalWrite(STATUS_TEENSY_BUILTIN, HIGH);
-            led_beat_counter = 0;
-        }
     }
 
     // Listen for messages from the LCD
@@ -171,24 +173,60 @@ void loop() {
         }
     }
 
+    // Check if we see a USB mass storage device
+    if (usb_filesystem && !usb_device_connected) {
+        // Connected.
+        Serial.println("USB drive connected");
+        usb_device_connected = true;
+        digitalWrite(STATUS_RED, LOW);
+        // Device is present. Let's look for the right files
+        Serial.println("Looking for .bin files on USB drive...");
+        if (usb_has_bins()) {
+            Serial.println("Found .bin files on USB drive");
+            // Remove all existing patterns
+            Serial.println("Removing existing .bin files from SD card");
+            sd_remove_bins();
+            // Copy the new files
+            Serial.println("Copying .bin files from USB drive to SD card");
+            if (copy_bins_from_usb_to_sd()) {
+                Serial.println("Successfully copied .bin files to SD card");
+            } else {
+                Serial.println("Error copying .bin files to SD card");
+            }
+            // Reload the cached patterns from the SD card
+            Serial.println("Reloading patterns");
+            num_led_patterns = 0;
+            if (sd_initialized) {
+                load_cached_patterns();
+                add_cached_patterns();
+            }
+            add_strobe_pattern();
+            add_static_pattern();
+        }
+        digitalWrite(STATUS_RED, LOW);
+    }
+
+    if (!usb_filesystem && !usb_host_serial) {
+        // No device
+        if (usb_device_connected) {
+            Serial.println("USB device disconnected");
+        }
+        digitalWrite(STATUS_RED, HIGH);
+        usb_device_connected = false;
+    }
+
     // Update MTP
     if (sd_initialized) {
         MTP.loop();
     }
-
-    // USB host
-    usb_host.Task();
 }
 
 // Refresh the LEDs
-static void led_refresh()
-{
+static void led_refresh() {
     uint32_t now = millis();
-    for (uint32_t i = 0; i < num_strings; i++)
-    {
+    for (uint32_t i = 0; i < num_strings; i++) {
         led_string_t *led_string = &led_strings[i];
-        for (uint32_t j = 0; j < led_string->num_segments; j++)
-        {
+        for (uint32_t j = 0; j < led_string->num_segments; j++) {
             led_segment_t *segment = &led_string->segments[j];
             led_zone_t *zone = &led_zones[segment->zone];
             led_pattern_params_t params;
@@ -204,16 +242,14 @@ static void led_refresh()
             params.num_leds = segment->num_leds;
             params.leds = leds_crgb + segment->string_offset;
             pattern.update(params);
-            for (uint32_t k = segment->string_offset; k < segment->string_offset + segment->num_leds; k++)
-            {
+            for (uint32_t k = segment->string_offset; k < segment->string_offset + segment->num_leds; k++) {
                 uint32_t color_u32 = 0x000000;
                 // Apply gamma correction.
                 leds_crgb[k] = applyGamma_video(leds_crgb[k], LEDS_GAMMA_CORRECTION, LEDS_GAMMA_CORRECTION, LEDS_GAMMA_CORRECTION);
                 // Scale for brightness
                 leds_crgb[k].nscale8(zone->brightness);
                 // Now we swizzle the bits according to the color ordering
-                switch (zone->color_ordering)
-                {
+                switch (zone->color_ordering) {
                 case WS2811_RGB:
                     color_u32 = leds_crgb[k].r << 16 | leds_crgb[k].g << 8 | leds_crgb[k].b;
                     break;
@@ -243,6 +279,17 @@ static void led_refresh()
         }
     }
     leds.show();
+    // Heartbeat LED
+    led_beat_counter++;
+    if (led_beat_counter == LED_REFRESH_RATE_HZ) {
+        digitalWrite(STATUS_GREEN, LOW);
+        digitalWrite(STATUS_TEENSY_BUILTIN, LOW);
+    }
+    if (led_beat_counter == LED_REFRESH_RATE_HZ * 2) {
+        digitalWrite(STATUS_GREEN, HIGH);
+        digitalWrite(STATUS_TEENSY_BUILTIN, HIGH);
+        led_beat_counter = 0;
+    }
 }
 
 // Compute the colors to display for each zone on the LCD for the current selected pattern
@@ -250,8 +297,7 @@ static void compute_display_colors(color_rgb_t zone_color[]) {
     // Compute the average color of the LEDs in each string.
     const uint32_t num_leds = 16;
     uint32_t now = millis();
-    for (uint32_t i = 0; i < NUM_ZONES; i++)
-    {
+    for (uint32_t i = 0; i < NUM_ZONES; i++) {
         CRGB leds[num_leds];
         led_pattern_params_t params;
         params.time_ms = now;
@@ -268,8 +314,7 @@ static void compute_display_colors(color_rgb_t zone_color[]) {
         uint32_t total_red = 0;
         uint32_t total_green = 0;
         uint32_t total_blue = 0;
-        for (uint32_t j = 0; j < num_leds; j++)
-        {
+        for (uint32_t j = 0; j < num_leds; j++) {
             CRGB color = leds[j];
             total_red += color.red;
             total_green += color.green;

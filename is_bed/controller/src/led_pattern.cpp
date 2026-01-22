@@ -12,8 +12,7 @@ static uint32_t last_display_strobe_time_ms = 0;
 
 // Set all the LEDs to the palette color, regardless of time
 void static_pattern(led_pattern_params_t p) {
-    for (uint32_t i = 0; i < p.num_leds; i++)
-    {
+    for (uint32_t i = 0; i < p.num_leds; i++) {
         p.leds[i] = p.single_color;
     }
 }
@@ -21,8 +20,7 @@ void static_pattern(led_pattern_params_t p) {
 // Rotate all the LEDs on a palette
 void rotate_pattern(led_pattern_params_t p) {
     uint32_t offset = 255 - p.time_ms * 255 / p.period_ms;
-    for (uint32_t i = 0; i < p.num_leds; i++)
-    {
+    for (uint32_t i = 0; i < p.num_leds; i++) {
         uint8_t palette_index = i * 255 / p.num_leds + offset;
         p.leds[i] = ColorFromPalette(*p.palette, palette_index);
     }
@@ -31,13 +29,11 @@ void rotate_pattern(led_pattern_params_t p) {
 // Fade all the LEDs on a palette
 void fade_pattern(led_pattern_params_t p) {
     uint32_t fade_u32 = (p.time_ms * 512 / p.period_ms) % 512;
-    if (fade_u32 >= 256)
-    {
+    if (fade_u32 >= 256) {
         fade_u32 = 511 - fade_u32;
     }
     uint8_t fade_u8 = fade_u32;
-    for (uint32_t i = 0; i < p.num_leds; i++)
-    {
+    for (uint32_t i = 0; i < p.num_leds; i++) {
         uint8_t palette_index = i * 255 / p.num_leds;
         p.leds[i] = ColorFromPalette(*p.palette, palette_index, fade_u8);
     }
@@ -46,8 +42,7 @@ void fade_pattern(led_pattern_params_t p) {
 // Blink all the LEDs on a palette
 void blink_pattern(led_pattern_params_t p) {
     bool on = p.time_ms % p.period_ms < p.period_ms / 2;
-    for (uint32_t i = 0; i < p.num_leds; i++)
-    {
+    for (uint32_t i = 0; i < p.num_leds; i++) {
         uint8_t palette_index = i * 255 / p.num_leds;
         if (on) {
             p.leds[i] = ColorFromPalette(*p.palette, palette_index);
@@ -100,8 +95,7 @@ void cached_pattern(led_pattern_params_t p) {
     pattern.file.seek(pos);
 
     // Read LED data for segment.
-    for (uint32_t i = 0; i < p.num_leds; i++)
-    {
+    for (uint32_t i = 0; i < p.num_leds; i++) {
         pattern.file.read(&p.leds[i], sizeof(CRGB));
     }
 }
