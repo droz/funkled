@@ -196,6 +196,10 @@ void loop() {
             // Reload the cached patterns from the SD card
             Serial.println("Reloading patterns");
             num_led_patterns = 0;
+            for (uint32_t i = 0; i < NUM_ZONES; i++) {
+                led_zones[i].led_pattern_index = 0;
+                led_zones[i].ui_pattern_index = 0;
+            }
             if (sd_initialized) {
                 load_cached_patterns();
                 add_cached_patterns();

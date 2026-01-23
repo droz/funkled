@@ -107,6 +107,7 @@ void add_cached_patterns() {
             // We use the filename to name the pattern, but we have to do some sanitizing.
             // Remove the file extension
             String name = cached_patterns[i].filepath;
+            Serial.print("Adding cached pattern: " + name);
             name = name.substring(name.lastIndexOf('/') + 1);
             int dot_index = name.lastIndexOf('.');
             if (dot_index != -1) {
@@ -115,12 +116,17 @@ void add_cached_patterns() {
             // Replace the underscores with spaces and adjust the case
             name.replace('_', ' ');
             name.toLowerCase();
+            // Remove any leading numbers or spaces
+            while (name.length() > 0 && (isdigit(name.charAt(0)) || name.charAt(0) == ' ')) {
+                name.remove(0, 1);
+            }
             // Capitalize the first letter of each word
             for (unsigned int j = 0; j < name.length(); j++) {
                 if (j == 0 || name.charAt(j - 1) == ' ') {
                     name.setCharAt(j, toupper(name.charAt(j)));
                 }
             }
+            Serial.println(" -> " + name);
             // Now we can fill the struct
             led_patterns[num_led_patterns].name = name;
             led_patterns[num_led_patterns].cached_pattern = &cached_patterns[i];
