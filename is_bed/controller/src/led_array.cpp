@@ -23,6 +23,7 @@ led_zone_t led_zones[] = {
         .single_color = default_single_color,
         .palette_index = default_palette_index,
         .update_period_ms = default_update_period_ms,
+        .max_brightness = 128,
         .brightness = default_brightness,
     },
     {
@@ -32,6 +33,7 @@ led_zone_t led_zones[] = {
         .single_color = default_single_color,
         .palette_index = default_palette_index,
         .update_period_ms = default_update_period_ms,
+        .max_brightness = 170,
         .brightness = default_brightness,
     },
     {
@@ -41,6 +43,7 @@ led_zone_t led_zones[] = {
         .single_color = default_single_color,
         .palette_index = default_palette_index,
         .update_period_ms = default_update_period_ms,
+        .max_brightness = 170,
         .brightness = default_brightness,
     },
     {
@@ -50,6 +53,7 @@ led_zone_t led_zones[] = {
         .single_color = default_single_color,
         .palette_index = default_palette_index,
         .update_period_ms = default_update_period_ms,
+        .max_brightness = 255,
         .brightness = default_brightness,
     },
 };

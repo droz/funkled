@@ -251,6 +251,7 @@ static void led_refresh() {
                 // Apply gamma correction.
                 leds_crgb[k] = applyGamma_video(leds_crgb[k], LEDS_GAMMA_CORRECTION, LEDS_GAMMA_CORRECTION, LEDS_GAMMA_CORRECTION);
                 // Scale for brightness
+                leds_crgb[k].nscale8(zone->max_brightness);
                 leds_crgb[k].nscale8(zone->brightness);
                 // Now we swizzle the bits according to the color ordering
                 switch (zone->color_ordering) {

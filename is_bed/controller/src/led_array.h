@@ -73,7 +73,9 @@ typedef struct
     uint32_t palette_index;
     // The period of the pattern update in milliseconds
     uint32_t update_period_ms;
-    // The brightness of the zone
+    // The maximum allowed brightness for the zone. Used to limit the total power draw.
+    uint8_t max_brightness;
+    // The brightness of the zone (0->255), will be rescaled by the max_brightness before outputting to the LEDs.
     uint8_t brightness;
 } led_zone_t;
 
